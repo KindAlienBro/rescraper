@@ -1,0 +1,180 @@
+# scraper.py (Full Script with Automatic Proxy Loading)
+
+import time
+import pytesseract
+import re
+from PIL import Image
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import NoSuchElementException
+from bs4 import BeautifulSoup
+import io
+import cv2
+import numpy as np
+import random
+
+# --- ⚠️ IMPORTANT CONFIGURATION ---
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+CHROME_DRIVER_PATH = './chromedriver.exe'
+
+def get_chromedriver_with_proxy(proxy):
+    """ Configures a Chrome WebDriver instance to use a proxy. """
+    service = Service(CHROME_DRIVER_PATH)
+    options = webdriver.ChromeOptions()
+    if proxy:
+        print(f"Configuring driver with proxy: {proxy}")
+        options.add_argument(f'--proxy-server={proxy}')
+    # options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument("window-size=1400,800")
+    options.add_argument("--disable-gpu")
+    try:
+        driver = webdriver.Chrome(service=service, options=options)
+        return driver
+    except Exception as e:
+        print(f"Failed to start Chrome with proxy {proxy}: {e}")
+        return None
+
+def solve_captcha(driver):
+    """ Solves the captcha using advanced OpenCV image processing and Tesseract OCR. """
+    try:
+        captcha_element = driver.find_element(By.XPATH, '//img[contains(@src, "vtu_captcha.php")]')
+        png = captcha_element.screenshot_as_png
+        nparr = np.frombuffer(png, np.uint8)
+        img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        _, binary = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY_INV)
+        kernel = np.ones((2, 2), np.uint8)
+        eroded = cv2.erode(binary, kernel, iterations=1)
+        dilated = cv2.dilate(eroded, kernel, iterations=1)
+        final_image = cv2.bitwise_not(dilated)
+        pil_img = Image.fromarray(final_image)
+        custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        captcha_text = pytesseract.image_to_string(pil_img, config=custom_config).strip()
+        cleaned_text = re.sub(r'[^a-zA-Z0-9]', '', captcha_text)
+        print(f"OCR Raw Text: '{captcha_text}', Cleaned Captcha: '{cleaned_text}'")
+        if cleaned_text and len(cleaned_text) == 6:
+            return cleaned_text
+        else:
+            print(f"OCR failed to read a 6-character captcha. Length was {len(cleaned_text)}.")
+            return None
+    except Exception as e:
+        print(f"Error in solve_captcha: {e}")
+        return None
+
+def parse_result_html(html_content, usn):
+    """ Parses the HTML of the result page to extract student data. """
+    soup = BeautifulSoup(html_content, 'html.parser')
+    result_data = {'usn': usn, 'student_name': 'N/A', 'subjects': [], 'total_marks': 'N/A', 'result_class': 'N/A'}
+    try:
+        name_label = soup.find('td', text=re.compile(r'Student Name', re.I))
+        if name_label:
+            result_data['student_name'] = name_label.find_next_sibling('td').get_text(strip=True).replace(':', '').strip()
+        first_semester_header = soup.find('b', text=re.compile(r'Semester\s*:\s*\d+'))
+        if first_semester_header:
+            semester_table = first_semester_header.find_parent('div').find_next_sibling('div', class_='divTable')
+            if semester_table:
+                subject_rows = semester_table.find_all('div', class_='divTableRow')
+                for row in subject_rows:
+                    cells = row.find_all('div', class_='divTableCell')
+                    if len(cells) == 7 and "subject code" not in cells[0].text.lower():
+                        result_data['subjects'].append({'code': cells[0].text.strip(), 'name': cells[1].text.strip(),'internal': cells[2].text.strip(), 'external': cells[3].text.strip(),'total': cells[4].text.strip(), 'result': cells[5].text.strip()})
+        if result_data['subjects']:
+            calculated_total, is_fail = 0, False
+            for subject in result_data['subjects']:
+                try: calculated_total += int(subject['total'])
+                except (ValueError, TypeError): pass
+                if subject['result'].upper() in ['F', 'A', 'NE', 'X']: is_fail = True
+            result_data['total_marks'] = str(calculated_total)
+            result_data['result_class'] = "FAIL" if is_fail else "PASS"
+        return result_data
+    except Exception as e:
+        print(f"An unexpected error during parsing for USN {usn}: {e}")
+        return result_data
+
+def fetch_vtu_results(usn_list, vtu_url):
+    """
+    Main function to orchestrate the scraping process.
+    Automatically loads proxies from 'working_proxies.txt'.
+    """
+    MAX_ATTEMPTS = 3
+    all_results = []
+
+    def load_proxies_from_file(filename="working_proxies.txt"):
+        try:
+            with open(filename, 'r') as f:
+                proxies = [line.strip() for line in f if line.strip()]
+            if not proxies:
+                print(f"[WARNING] Proxy file '{filename}' was found but is empty.")
+                return []
+            print(f"Successfully loaded {len(proxies)} proxies from '{filename}'.")
+            return proxies
+        except FileNotFoundError:
+            print(f"[WARNING] Proxy file '{filename}' not found. Did you run proxy_checker.py?")
+            return []
+
+    PROXY_LIST = load_proxies_from_file()
+
+    if not PROXY_LIST:
+        print("Scraping will proceed without proxies.\n")
+        time.sleep(3)
+
+    for i, usn in enumerate(usn_list):
+        if i > 0:
+            delay = random.uniform(5, 10)
+            print(f"\n--- Pausing for {delay:.2f} seconds to avoid rate-limiting ---")
+            time.sleep(delay)
+
+        proxy = random.choice(PROXY_LIST) if PROXY_LIST else None
+        driver = get_chromedriver_with_proxy(proxy)
+        if not driver:
+            print(f"Could not initialize driver for USN {usn}. Skipping.")
+            continue
+
+        was_successful = False
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                print(f"\nFetching result for USN: {usn} (Attempt {attempt + 1}/{MAX_ATTEMPTS})...")
+                driver.get(vtu_url)
+                time.sleep(1.5)
+                captcha_solution = solve_captcha(driver)
+                if not captcha_solution:
+                    print("Could not solve captcha. Retrying...")
+                    time.sleep(1)
+                    continue
+                driver.find_element(By.NAME, 'lns').send_keys(usn)
+                driver.find_element(By.NAME, 'captchacode').send_keys(captcha_solution)
+                driver.find_element(By.ID, 'submit').click()
+                time.sleep(3)
+                try:
+                    alert = driver.switch_to.alert
+                    alert_text = alert.text
+                    alert.accept()
+                    if 'Invalid captcha' in alert_text:
+                        print(f"Captcha failure for {usn}. Retrying...")
+                        continue
+                    else:
+                        print(f"Alert received for {usn}: '{alert_text}'. Skipping this USN.")
+                        was_successful = True
+                        break
+                except Exception:
+                    pass
+                result_data = parse_result_html(driver.page_source, usn)
+                if result_data and result_data['subjects']:
+                    all_results.append(result_data)
+                    print(f"Successfully fetched and parsed result for {usn}")
+                    was_successful = True
+                    break
+                else:
+                    print(f"Page loaded for {usn}, but no subjects found. Might be a 'results not available' page.")
+                    was_successful = True
+                    break
+            except Exception as e:
+                print(f"A critical error on attempt {attempt + 1} for {usn}: {e}. Retrying...")
+                time.sleep(2)
+        if not was_successful:
+            print(f"--- FAILED to fetch result for {usn} after {MAX_ATTEMPTS} attempts. ---")
+        driver.quit()
+    return all_results

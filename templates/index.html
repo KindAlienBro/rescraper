@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTU Result Scraper</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>VTU Result Scraper</h1>
+        <p class="subtitle">Fetch VTU results automatically and download them as Excel or PDF.</p>
+        
+        <form id="usn-form">
+            <div class="form-group full-width">
+                <label for="vtu-url">VTU Result Link:</label>
+                <input type="url" id="vtu-url" name="vtu_url" placeholder="https://results.vtu.ac.in/JJEcbcs25/index.php" required>
+            </div>
+            <div class="form-group">
+                <label for="start-usn">Start USN:</label>
+                <input type="text" id="start-usn" name="start_usn" placeholder="e.g., 1AY23AI001" required>
+            </div>
+            <div class="form-group">
+                <label for="end-usn">End USN:</label>
+                <input type="text" id="end-usn" name="end_usn" placeholder="e.g., 1AY23AI010" required>
+            </div>
+            <button type="submit" id="fetch-btn">Fetch Results</button>
+        </form>
+
+        <div id="loader" class="loader" style="display: none;"></div>
+        <div id="status-message"></div>
+
+        <div id="results-container" style="display: none;">
+            <h2>Results</h2>
+            <div class="download-buttons">
+                <button id="download-excel">Download as Excel (.xlsx)</button>
+                <button id="download-pdf">Download as PDF</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="results-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/script.js"></script>
+</body>
+</html>

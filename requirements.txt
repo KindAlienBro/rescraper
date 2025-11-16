@@ -1,0 +1,9 @@
+flask
+selenium
+beautifulsoup4
+pandas
+openpyxl
+pytesseract
+Pillow
+pdfkit
+requests

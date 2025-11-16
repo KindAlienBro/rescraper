@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VTU Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10px; /* Smaller font is necessary for wide tables */
+        }
+        h1 { 
+            text-align: center; 
+            color: #333; 
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* Helps keep columns even */
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 4px;
+            text-align: center;
+            word-wrap: break-word; /* Important for long subject codes */
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            vertical-align: middle; /* Aligns text in merged cells */
+        }
+        .student-name {
+            text-align: left; /* Align student names to the left */
+        }
+    </style>
+</head>
+<body>
+    <h1>Student Results Summary</h1>
+    <table>
+        <thead>
+            <!-- First Header Row (Top level: USN, Name, Subject Codes) -->
+            <tr>
+                <th rowspan="2">USN</th>
+                <th rowspan="2">Name</th>
+                
+                <!-- This loop creates the main subject code headers -->
+                {% for code in subject_codes %}
+                <th colspan="4">{{ code }}</th>
+                {% endfor %}
+                
+                <th rowspan="2">NO OF SUBJECTS FAILED</th>
+                <th rowspan="2">NO OF SUBJECTS ABSENT</th>
+            </tr>
+
+            <!-- Second Header Row (Sub-headers: IA, Ex, Total, Pass/Fail) -->
+            <tr>
+                <!-- This loop creates the sub-headers for EACH subject -->
+                {% for _ in subject_codes %}
+                <th>IA</th>
+                <th>Ex</th>
+                <th>Total</th>
+                <th>Pass/Fail</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <!-- This loop creates a row for each student -->
+            {% for student in results %}
+            <tr>
+                <td>{{ student.USN }}</td>
+                <td class="student-name">{{ student.Name }}</td>
+                
+                <!-- This inner loop populates the marks for each subject for the current student -->
+                {% for code in subject_codes %}
+                <td>{{ student.subjects_data[code].IA }}</td>
+                <td>{{ student.subjects_data[code].Ex }}</td>
+                <td>{{ student.subjects_data[code].Total }}</td>
+                <td>{{ student.subjects_data[code]['Pass/Fail'] }}</td>
+                {% endfor %}
+                
+                <td>{{ student.subjects_failed }}</td>
+                <td>{{ student.subjects_absent }}</td>
+            </tr>
+            {% else %}
+            <!-- This shows if there are no results -->
+            <tr>
+                <td colspan="{{ 2 + (subject_codes|length * 4) + 2 }}">No results found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
