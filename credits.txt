@@ -1,0 +1,21 @@
+CREDIT_MAP = {
+    'BCS401': 3, # ADA
+    'BAD402': 4, # AI
+    'BCS403': 4, # DBMS
+    'BCS405A': 3, #DMS
+    'BCS405C': 3, #OT
+    
+    
+    'BCSL404': 1, #ADAL
+    'BDSL456B': 1, #MONGO
+    'BDSL456C': 1, #MERN
+    
+    
+    'BBOC407': 2, #BIO
+    'BUHK408': 1, #UHV
+    'BPEK459': 0, #PE
+    'BYOK459': 0, #YOGA
+    'BNSK459': 0, #NSS
+    
+    
+}

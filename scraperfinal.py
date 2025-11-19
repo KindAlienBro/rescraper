@@ -194,7 +194,7 @@ def fetch_vtu_results(usn_list, vtu_url):
     """
     Main function to orchestrate the scraping process with improved logic.
     """
-    MAX_ATTEMPTS = 5
+    MAX_ATTEMPTS = 4
     all_results = []
     
     PROXY_LIST = [] 
