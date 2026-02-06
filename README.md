@@ -1,9 +1,10 @@
-# rescraper
-Run app.py script
-make sure all files are in sigle directory
-rescraper/
-│
-├── app.py
-├── requirements.txt
-├── ...
+# Rescraper
+
+Rescraper is a Python application that runs using a single script.
+
+---
+
+## 📂 Project Structure
+
+Make sure **all files are placed in a single directory**.
 
