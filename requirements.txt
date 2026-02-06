@@ -6,4 +6,25 @@ openpyxl
 pytesseract
 Pillow
 pdfkit
+
 requests
+# Flask Web Framework
+Flask
+Flask-Cors
+
+# Data Handling and Analysis
+pandas
+numpy
+openpyxl
+
+# PDF and Excel Generation
+pdfkit
+
+# Web Scraping and Parsing
+selenium
+beautifulsoup4
+
+# Image Processing and OCR
+Pillow
+opencv-python
+pytesseract
