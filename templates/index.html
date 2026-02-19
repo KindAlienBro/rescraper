@@ -4,37 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VTU Result Scraper</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>VTU Result Scraper</h1>
-        <p class="subtitle">Fetch VTU results automatically and download them as Excel or PDF.</p>
-        
-        <form id="usn-form">
-            <div class="form-group full-width">
-                <label for="vtu-url">VTU Result Link:</label>
-                <input type="url" id="vtu-url" name="vtu_url" placeholder="https://results.vtu.ac.in/JJEcbcs25/index.php" required>
-            </div>
-            <div class="form-group">
-                <label for="start-usn">Start USN:</label>
-                <input type="text" id="start-usn" name="start_usn" placeholder="e.g., 1AY23AI001" required>
-            </div>
-            <div class="form-group">
-                <label for="end-usn">End USN:</label>
-                <input type="text" id="end-usn" name="end_usn" placeholder="e.g., 1AY23AI010" required>
-            </div>
-            <button type="submit" id="fetch-btn">Fetch Results</button>
-        </form>
+    <!-- Animated background grid -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
 
-        <div id="loader" class="loader" style="display: none;"></div>
+    <div class="container">
+
+        <!-- Header -->
+        <header class="site-header">
+            <div class="header-badge">
+                <span class="badge-dot"></span>
+                <span>VTU Exam Results Portal</span>
+            </div>
+            <h1>Result<span class="accent">Scraper</span></h1>
+            <p class="subtitle">Fetch, view and export VTU results for an entire batch in seconds.</p>
+        </header>
+
+        <!-- Form Card -->
+        <div class="card form-card">
+            <div class="card-label">Configure Fetch</div>
+            <form id="usn-form">
+                <div class="form-group full-width">
+                    <label for="vtu-url">
+                        <span class="label-icon">🔗</span> VTU Result Link
+                    </label>
+                    <input type="url" id="vtu-url" name="vtu_url"
+                        placeholder="https://results.vtu.ac.in/JJEcbcs25/index.php" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="start-usn">
+                            <span class="label-icon">▶</span> Start USN
+                        </label>
+                        <input type="text" id="start-usn" name="start_usn"
+                            placeholder="e.g., 1AY23AI001" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="end-usn">
+                            <span class="label-icon">⏹</span> End USN
+                        </label>
+                        <input type="text" id="end-usn" name="end_usn"
+                            placeholder="e.g., 1AY23AI060" required>
+                    </div>
+                    <button type="submit" id="fetch-btn">
+                        <span class="btn-text">Fetch Results</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" style="display: none;">
+            <div class="loader-ring">
+                <div></div><div></div><div></div><div></div>
+            </div>
+            <p class="loader-text">Scraping results — please wait…</p>
+        </div>
+
+        <!-- Status Message -->
         <div id="status-message"></div>
 
+        <!-- Results Container -->
         <div id="results-container" style="display: none;">
-            <h2>Results</h2>
-            <div class="download-buttons">
-                <button id="download-excel">Download as Excel (.xlsx)</button>
-                <button id="download-pdf">Download as PDF</button>
+            <div class="results-header">
+                <h2>Batch Results</h2>
+                <div class="download-buttons">
+                    <button id="download-excel" class="btn-download btn-excel">
+                        <span class="dl-icon">📊</span> Export Excel (.xlsx)
+                    </button>
+                    <button id="download-pdf" class="btn-download btn-pdf">
+                        <span class="dl-icon">📄</span> Export PDF
+                    </button>
+                </div>
             </div>
             <div class="table-wrapper">
                 <table id="results-table">
@@ -43,7 +90,26 @@
                 </table>
             </div>
         </div>
+
     </div>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+    <span>Powered by</span>
+    <a href="https://vorniity.com/" target="_blank" rel="noopener" class="vorniity-link">
+        
+        <!-- Vorniity logo image -->
+        <img 
+            src="./static/images/vorniity.png" 
+            alt="Vorniity logo" 
+            class="vorniity-logo"
+        />
+
+        <span class="vorniity-name">Vorniity</span>
+    </a>
+</footer>
+
+
     <script src="/static/js/script.js"></script>
 </body>
 </html>
