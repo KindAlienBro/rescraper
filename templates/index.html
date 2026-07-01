@@ -1,116 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vorniity Result Scraper</title>
+    <title>Vorniity | Professional Dashboard</title>
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
-    <!-- Animated background grid -->
-    <div class="bg-grid"></div>
-    <div class="bg-glow"></div>
 
-    <div class="container">
+    <div class="dashboard-layout">
 
-        <!-- Header -->
-        <header class="site-header">
-            <div class="header-badge">
-                <span class="badge-dot"></span>
-                <span>VTU Exam Results Portal</span>
-            </div>
-            <h1>Result<span class="accent">Scraper</span></h1>
-            <p class="subtitle">Fetch, view and export VTU results for an entire batch in seconds.</p>
-        </header>
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="overlay hidden"></div>
 
-        <!-- Form Card -->
-        <div class="card form-card">
-            <div class="card-label">Configure Fetch</div>
-            <form id="usn-form">
-                <div class="form-group full-width">
-                    <label for="vtu-url">
-                        <span class="label-icon">🔗</span> VTU Result Link
-                    </label>
-                    <input type="url" id="vtu-url" name="vtu_url"
-                        placeholder="https://results.vtu.ac.in/JJEcbcs25/index.php" required>
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <a href="https://www.vorniity.com" target="_blank" class="sidebar-header"
+                style="text-decoration: none; color: inherit; cursor: pointer; ">
+                <div class="logo">
+                    <img src="/static/images/vorniity.png" alt="Vorniity Logo"
+                        style="width: 32px; height: 32px; border-radius: 6px;">
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="start-usn">
-                            <span class="label-icon">▶</span> Start USN
-                        </label>
-                        <input type="text" id="start-usn" name="start_usn"
-                            placeholder="e.g., 1AY23AI001" required>
+                <h2>Vorniity</h2>
+            </a>
+
+            <nav class="sidebar-nav">
+                <button id="nav-overview" class="nav-item active">
+                    <i class="ph ph-squares-four"></i>
+                    <span>Overview</span>
+                </button>
+                <button id="nav-live-scrape" class="nav-item">
+                    <i class="ph ph-cloud-arrow-down"></i>
+                    <span>Live Scraper</span>
+                </button>
+                <button id="nav-db-archive" class="nav-item">
+                    <i class="ph ph-database"></i>
+                    <span>Student Database</span>
+                </button>
+                <button id="nav-classes" class="nav-item">
+                    <i class="ph ph-users-three"></i>
+                    <span>Classes</span>
+                </button>
+                <button id="nav-history" class="nav-item">
+                    <i class="ph ph-clock-counter-clockwise"></i>
+                    <span>Scrape History</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="nav-settings" class="nav-item">
+                    <i class="ph ph-gear"></i>
+                    <span>Settings</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button id="mobile-menu-btn" class="icon-btn mobile-only">
+                        <i class="ph ph-list"></i>
+                    </button>
+                    <h1 id="page-title">Overview</h1>
+                </div>
+                <div class="topbar-right">
+                    <div class="user-profile">
+                        <div class="avatar"><i class="ph ph-user"></i></div>
+                        <span>Admin</span>
                     </div>
-                    <div class="form-group">
-                        <label for="end-usn">
-                            <span class="label-icon">⏹</span> End USN
-                        </label>
-                        <input type="text" id="end-usn" name="end_usn"
-                            placeholder="e.g., 1AY23AI060" required>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+
+                <!-- OVERVIEW SECTION -->
+                <section id="overview-section" class="view-section">
+                    <div class="overview-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ph ph-student"></i></div>
+                            <div class="stat-info">
+                                <h3>Total Students</h3>
+                                <h2 id="stat-students">--</h2>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ph ph-users-three"></i></div>
+                            <div class="stat-info">
+                                <h3>Saved Classes</h3>
+                                <h2 id="stat-classes">--</h2>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e0e7ff; color:#4f46e5;"><i
+                                    class="ph ph-check-circle"></i></div>
+                            <div class="stat-info">
+                                <h3>System Status</h3>
+                                <h2>Online</h2>
+                            </div>
+                        </div>
                     </div>
-                    <button type="submit" id="fetch-btn">
-                        <span class="btn-text">Fetch Results</span>
-                        <span class="btn-arrow">→</span>
-                    </button>
+
+                    <div class="quick-actions">
+                        <h2>Quick Actions</h2>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary"
+                                onclick="document.getElementById('nav-live-scrape').click()">
+                                <i class="ph ph-cloud-arrow-down"></i> Start New Scrape
+                            </button>
+                            <button class="btn btn-outline" onclick="document.getElementById('nav-classes').click()">
+                                <i class="ph ph-plus"></i> Create Class
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SCRAPE SECTION -->
+                <section id="scrape-section" class="view-section hidden">
+                    <div class="card form-card">
+                        <h2>Live VTU Scraper</h2>
+                        <p class="text-muted" style="margin-bottom: 24px;">Extract batch results directly from VTU
+                            servers into your local database.</p>
+
+                        <form id="usn-form" class="modern-form">
+                            <div class="form-group">
+                                <label for="vtu-url">VTU Result Portal URL</label>
+                                <input type="url" id="vtu-url" name="vtu_url"
+                                    placeholder="https://results.vtu.ac.in/..." required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="start-usn">Start USN</label>
+                                    <input type="text" id="start-usn" name="start_usn" placeholder="1AY23AI001"
+                                        required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="end-usn">End USN</label>
+                                    <input type="text" id="end-usn" name="end_usn" placeholder="1AY23AI060" required>
+                                </div>
+                            </div>
+
+                            <button type="submit" id="fetch-btn" class="btn btn-primary btn-lg">
+                                <i class="ph ph-lightning"></i> Initialize Fetch
+                            </button>
+                        </form>
+                    </div>
+
+                    <div id="state-area">
+                        <div id="loader" class="hidden card status-card">
+                            <div class="spinner"></div>
+                            <p class="status-text" id="status-message">Connecting to VTU servers...</p>
+
+                            <div class="progress-track hidden" id="progress-container">
+                                <div class="progress-fill" id="progress-fill"></div>
+                                <div class="progress-meta" style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+                                    <span id="progress-count">0 / 0</span>
+                                    <span id="progress-speed">0 USNs/s</span>
+                                    <span id="progress-percent">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- RESULTS (Used for Archive & Classes) -->
+                <section id="results-container" class="view-section hidden">
+                    <div class="card table-card">
+                        <div class="results-toolbar">
+                            <div class="toolbar-left">
+                                <h2 id="results-title">Student Profiles</h2>
+                                <span class="badge badge-subtle" id="total-count-badge">0 Students</span>
+                            </div>
+                            <div class="toolbar-right">
+                                <div class="search-box">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="search-input" placeholder="Search USN or Name...">
+                                </div>
+                                <select id="status-filter" class="modern-select">
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="FCD">FCD</option>
+                                    <option value="FC">First Class</option>
+                                    <option value="SC">Second Class</option>
+                                    <option value="FAIL">Fail</option>
+                                </select>
+                                <button id="download-excel" class="btn btn-outline">
+                                    <i class="ph ph-file-xls"></i> Export .xlsx
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="student-grid" class="student-grid">
+                            <!-- Profile Cards injected here -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CLASSES SECTION -->
+                <section id="classes-section" class="view-section hidden">
+                    <div class="two-col-layout">
+                        <!-- Form -->
+                        <div class="card">
+                            <h2>Create New Class</h2>
+                            <form id="add-class-form" class="modern-form">
+                                <div class="form-group">
+                                    <label>Class Name</label>
+                                    <input type="text" id="new-class-name" placeholder="e.g. Section A" required>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Start USN</label>
+                                        <input type="text" id="new-class-start" placeholder="1AY23AI001" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>End USN</label>
+                                        <input type="text" id="new-class-end" placeholder="1AY23AI060" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-full">Create Class</button>
+                            </form>
+                            <div id="class-status-msg" class="form-msg"></div>
+                        </div>
+
+                        <!-- List -->
+                        <div class="card">
+                            <div class="card-header-flex">
+                                <h2>Saved Classes</h2>
+                                <span class="badge badge-subtle" id="total-classes-badge">0</span>
+                            </div>
+                            <div class="list-container" id="classes-grid">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SCRAPE HISTORY SECTION -->
+                <section id="history-section" class="view-section hidden">
+                    <div class="card">
+                        <div class="card-header-flex">
+                            <h2>Scrape Operations</h2>
+                            <button class="btn btn-outline" onclick="fetchScrapeHistory()">
+                                <i class="ph ph-arrows-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="list-container" id="history-grid" style="margin-top: 16px;">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SETTINGS SECTION -->
+                <section id="settings-section" class="view-section hidden">
+                    <div class="two-col-layout">
+                        <!-- Form -->
+                        <div class="card">
+                            <h2>Add / Update Subject</h2>
+                            <form id="add-credit-form" class="modern-form">
+                                <div class="form-group">
+                                    <label>Subject Code</label>
+                                    <input type="text" id="new-subject-code" placeholder="e.g. 21MAT11" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Credits</label>
+                                    <input type="number" id="new-subject-credits" placeholder="3" required min="1"
+                                        max="10">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-full">Save Subject</button>
+                            </form>
+                            <div id="credit-status-msg" class="form-msg"></div>
+                        </div>
+
+                        <!-- List -->
+                        <div class="card">
+                            <div class="card-header-flex">
+                                <h2>Database Subjects</h2>
+                                <span class="badge badge-subtle" id="total-subjects-badge">0</span>
+                            </div>
+                            <div class="list-container" id="subjects-grid">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div> <!-- content-wrapper -->
+        </main>
+
+        <!-- History Modal -->
+        <div id="history-modal" class="modal hidden">
+            <div class="modal-content card">
+                <div class="modal-header">
+                    <div>
+                        <h2 id="modal-student-name">Name</h2>
+                        <p id="modal-student-usn" class="text-muted">USN</p>
+                    </div>
+                    <button id="close-modal" class="icon-btn"><i class="ph ph-x"></i></button>
                 </div>
-            </form>
-        </div>
 
-        <!-- Loader -->
-        <div id="loader" style="display: none;">
-            <div class="loader-ring">
-                <div></div><div></div><div></div><div></div>
-            </div>
-            <p class="loader-text">Scraping results — please wait…</p>
-        </div>
-
-        <!-- Status Message -->
-        <div id="status-message"></div>
-
-        <!-- Results Container -->
-        <div id="results-container" style="display: none;">
-            <div class="results-header">
-                <h2>Batch Results</h2>
-                <div class="download-buttons">
-                    <button id="download-excel" class="btn-download btn-excel">
-                        <span class="dl-icon">📊</span> Export Excel (.xlsx)
-                    </button>
-                    <button id="download-pdf" class="btn-download btn-pdf">
-                        <span class="dl-icon">📄</span> Export PDF
-                    </button>
+                <div class="modal-tabs" id="history-tabs">
+                    <!-- Semester tabs injected here -->
                 </div>
+
+                <div class="modal-body" id="history-tab-content">
+                    <!-- Semester content injected here -->
+                </div>
+                <!-- Edit Class Modal -->
+                <div id="edit-class-modal" class="modal hidden">
+                    <div class="modal-content card" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <div>
+                                <h2>Edit Class</h2>
+                            </div>
+                            <button class="icon-btn close-edit-class"><i class="ph ph-x"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="edit-class-form" class="modern-form">
+                                <input type="hidden" id="edit-class-id">
+                                <div class="form-group">
+                                    <label>Class Name</label>
+                                    <input type="text" id="edit-class-name" required>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Start USN</label>
+                                        <input type="text" id="edit-class-start" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>End USN</label>
+                                        <input type="text" id="edit-class-end" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-full">Update Class</button>
+                                <div id="edit-class-status-msg" class="form-msg"></div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-            <div class="table-wrapper">
-                <table id="results-table">
-                    <thead></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
 
-    </div>
-
-    <!-- Footer -->
-    <footer class="site-footer">
-    <span>Powered by</span>
-    <a href="https://vorniity.com/" target="_blank" rel="noopener" class="vorniity-link">
-        
-        <!-- Vorniity logo image -->
-        <img 
-            src="./static/images/vorniity.png" 
-            alt="Vorniity logo" 
-            class="vorniity-logo"
-        />
-
-        <span class="vorniity-name">Vorniity</span>
-    </a>
-</footer>
-
-
-    <script src="/static/js/script.js"></script>
+            <script src="/static/js/script.js"></script>
 </body>
-</html>
 
+</html>

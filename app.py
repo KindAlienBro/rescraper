@@ -1,20 +1,33 @@
-# app.py (Final Version with Analysis Dashboard and Analysis Export)
+# app.py (v2 — Lightweight, HF Spaces ready)
 
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
-import pdfkit
 import io
+import os
 import re
+import uuid
+import threading
 import pandas as pd
 import json
 from scraper import fetch_vtu_results 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
+import db
 
-# --- (All configurations, helper functions, and data formatters remain the same) ---
-path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe' 
-config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+import sys
+import builtins
+
+def force_print(*args, **kwargs):
+    kwargs['file'] = sys.stderr
+    kwargs['flush'] = True
+    builtins.print(*args, **kwargs)
+
+print = force_print
+# Initialize Database
+db.init_db()
+
+JOBS = {}
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app, resources={r"/*": {"origins": "*"}})
 CREDIT_MAP = {
@@ -35,9 +48,25 @@ CREDIT_MAP = {
     'BPEK459': 0, #PE
     'BYOK459': 0, #YOGA
     'BNSK459': 0, #NSS
-    
-    
+    'BAI601':4,
+    'BAI602':4,
+    'BAI685':2,
+    'BAI613A':3,
+    'BAI613D':3,
+    'BXX654X':3,
+    'BAIL606':1,
+    'BAIL657C':2,
+    'BAI657D':2,
+    'BIKS609':0,
+    'BNSK658':0,
+    'BPEK658':0,
+    'BYOK658':0
 }
+
+# Seed if empty, then load dynamic map from DB
+db.seed_credits_if_empty(CREDIT_MAP)
+CREDIT_MAP = db.get_all_credits()
+
 def get_grade_point(marks_str, result_str):
     if result_str in ['F', 'A', 'NE']: return 0
     try:
@@ -64,16 +93,27 @@ def format_data_for_wide_export(results_data):
     elective_groups = {}
     for code in all_subject_codes:
         if not code: continue
-        match = re.search(r'\d+', code)
-        if match:
-            group_key = match.group(0)
-            if group_key not in elective_groups: elective_groups[group_key] = []
-            elective_groups[group_key].append(code)
+        
+        # Adaptive grouping for BXX... scheme electives (e.g., BCS603A, BME654A)
+        match_bxx = re.match(r'^B[A-Z0-9]{2}(\d{3})[A-Z]$', code)
+        # Grouping for 18/21 scheme electives (e.g., 18CS641)
+        match_old = re.match(r'^(\d{2}[A-Z]{2,3}\d{2})\d$', code)
+        
+        if match_bxx:
+            group_key = f"BXX{match_bxx.group(1)}"
+        elif match_old:
+            group_key = match_old.group(1)
+        else:
+            group_key = code[:-1] if len(code) > 0 else code
+            
+        if group_key not in elective_groups: elective_groups[group_key] = []
+        elective_groups[group_key].append(code)
     display_headers = []
     for key, codes in sorted(elective_groups.items()):
         is_elective = len(codes) > 1
         header_info = {"header": key if is_elective else codes[0], "is_elective": is_elective}
         display_headers.append(header_info)
+
     processed_records = []
     for student in results_data:
         student_subjects = {s['subject_code']: s for s in student.get('subjects', [])}
@@ -90,47 +130,260 @@ def format_data_for_wide_export(results_data):
                 record['subjects_data'][header_key] = {'Course': found_subject.get('subject_code', '-'), 'IA': found_subject.get('internal_marks', '-'),'Ex': found_subject.get('external_marks', '-'), 'Total': found_subject.get('total', '-'), 'Pass/Fail': found_subject.get('result', '-')}
             else:
                 record['subjects_data'][header_key] = {'Course': '-', 'IA': '-', 'Ex': '-', 'Total': '-', 'Pass/Fail': '-'}
-        total_credit_points, total_grade_credit_product = 0, 0
-        for subject in student.get('subjects', []):
-            credits = CREDIT_MAP.get(subject.get('subject_code'))
-            if credits is None: continue
-            grade_point = get_grade_point(subject.get('total'), subject.get('result'))
-            total_credit_points += credits
-            total_grade_credit_product += (grade_point * credits)
-        record['sgpa'] = f"{(total_grade_credit_product / total_credit_points):.2f}" if total_credit_points > 0 else "N/A"
-        num_subjects_for_student = len(student.get('subjects', []))
-        max_possible_marks = num_subjects_for_student * 100
-        total_marks_obtained, has_failed_a_subject = 0, False
-        for subject in student.get('subjects', []):
-            if subject.get('result') == 'F': has_failed_a_subject = True
-            try: total_marks_obtained += int(subject.get('internal_marks', '0'))
-            except: pass
-            try: total_marks_obtained += int(subject.get('external_marks', '0'))
-            except: pass
-        percentage = (total_marks_obtained / max_possible_marks) * 100 if max_possible_marks > 0 else 0
-        record['percentage'] = f"{percentage:.2f}%" if max_possible_marks > 0 else "N/A"
-        if has_failed_a_subject or percentage < 50: record['class'] = "FAIL"
-        elif percentage >= 70: record['class'] = "FCD"
-        elif percentage >= 60: record['class'] = "FC"
-        elif percentage >= 50: record['class'] = "SC"
-        else: record['class'] = "N/A" if record['percentage'] == "N/A" else "FAIL"
-        record['subjects_failed'] = sum(1 for s in student.get('subjects', []) if s.get('result') == 'F')
-        record['subjects_absent'] = sum(1 for s in student.get('subjects', []) if s.get('result') == 'A')
+        
+        # Stats are already calculated in the raw data, just copy them over
+        record['sgpa'] = student.get('sgpa', 'N/A')
+        record['percentage'] = student.get('percentage', 'N/A')
+        record['class'] = student.get('class', 'N/A')
+        record['subjects_failed'] = student.get('subjects_failed', 0)
+        record['subjects_absent'] = student.get('subjects_absent', 0)
+        
         processed_records.append(record)
     return processed_records, display_headers
+
+def calculate_student_stats(student):
+    """Calculates SGPA, percentage, and pass/fail status for a single student dictionary."""
+    total_credit_points, total_grade_credit_product = 0, 0
+    num_subjects = len(student.get('subjects', []))
+    max_possible_marks = num_subjects * 100
+    total_marks_obtained = 0
+    has_failed_a_subject = False
+    subjects_failed = 0
+    subjects_absent = 0
+
+    for subject in student.get('subjects', []):
+        res = subject.get('result', '')
+        if res == 'F': 
+            has_failed_a_subject = True
+            subjects_failed += 1
+        elif res == 'A':
+            subjects_absent += 1
+            
+        try: total_marks_obtained += int(subject.get('internal_marks', '0'))
+        except: pass
+        try: total_marks_obtained += int(subject.get('external_marks', '0'))
+        except: pass
+
+        credits = CREDIT_MAP.get(subject.get('subject_code'))
+        if credits:
+            grade_point = get_grade_point(subject.get('total'), res)
+            total_credit_points += credits
+            total_grade_credit_product += (grade_point * credits)
+
+    student['sgpa'] = f"{(total_grade_credit_product / total_credit_points):.2f}" if total_credit_points > 0 else "N/A"
+    percentage = (total_marks_obtained / max_possible_marks) * 100 if max_possible_marks > 0 else 0
+    student['percentage'] = f"{percentage:.2f}%" if max_possible_marks > 0 else "N/A"
+    
+    if has_failed_a_subject or percentage < 50: student['class'] = "FAIL"
+    elif percentage >= 70: student['class'] = "FCD"
+    elif percentage >= 60: student['class'] = "FC"
+    elif percentage >= 50: student['class'] = "SC"
+    else: student['class'] = "N/A" if student['percentage'] == "N/A" else "FAIL"
+    
+    student['subjects_failed'] = subjects_failed
+    student['subjects_absent'] = subjects_absent
+    student['total_marks'] = total_marks_obtained
+    return student
 # ... (all routes up to /analyze are the same) ...
 @app.route('/')
 def index(): return render_template('index.html')
-@app.route('/scrape', methods=['POST'])
-def scrape():
+@app.route('/api/scrape_chunk', methods=['POST'])
+def scrape_chunk():
+    """
+    Synchronous endpoint to scrape a chunk of USNs.
+    Designed to be called by the frontend orchestrator.
+    """
     data = request.json
-    start_usn, end_usn, vtu_url = data.get('start_usn', '').upper(), data.get('end_usn', '').upper(), data.get('vtu_url', '')
-    if not all([start_usn, end_usn, vtu_url]): return jsonify({'error': 'Missing required fields.'}), 400
-    usn_list = generate_usn_range(start_usn, end_usn)
-    if not usn_list: return jsonify({'error': 'Invalid USN format or range.'}), 400
-    results = fetch_vtu_results(usn_list, vtu_url)
-    if not results: return jsonify({'error': 'No new results were found.'}), 500
-    return jsonify(results)
+    usn_list = data.get('usns', [])
+    vtu_url = data.get('vtu_url', '')
+    
+    if not usn_list or not vtu_url:
+        return jsonify({'error': 'Missing usns or vtu_url'}), 400
+        
+    try:
+        results = fetch_vtu_results(usn_list, vtu_url, job_state=None)
+        if results:
+            results = [calculate_student_stats(r) for r in results]
+            return jsonify({'success': True, 'scraped_count': len(results), 'results': results})
+        else:
+            return jsonify({'success': False, 'error': 'No results found or process failed.'}), 404
+    except Exception as e:
+        print(f"[SCRAPE CHUNK ERROR] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/students/all', methods=['GET'])
+def get_all_students_from_db():
+    """Fetches the latest scraped profile for every unique student in the database."""
+    try:
+        conn = db.get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT usn, data, MAX(timestamp) as max_time FROM results_cache_v2 GROUP BY usn, data ORDER BY usn")
+            rows = cursor.fetchall()
+        conn.close()
+        
+        students = []
+        for row in rows:
+            data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
+            data = calculate_student_stats(data)
+            students.append(data)
+            
+        return jsonify(students)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/credits', methods=['GET', 'POST'])
+def manage_credits():
+    """API endpoint to get or update subject credits."""
+    global CREDIT_MAP
+    if request.method == 'GET':
+        return jsonify(db.get_all_credits())
+    
+    if request.method == 'POST':
+        data = request.json
+        code = data.get('subject_code')
+        credits = data.get('credits')
+        
+        if not code or credits is None:
+            return jsonify({'error': 'Missing subject_code or credits'}), 400
+            
+        try:
+            credits = int(credits)
+        except ValueError:
+            return jsonify({'error': 'Credits must be an integer'}), 400
+            
+        success = db.save_credit(code.upper(), credits)
+        if success:
+            # Update the global in-memory map so we don't need to restart
+            CREDIT_MAP[code.upper()] = credits
+            return jsonify({'success': True, 'subject_code': code.upper(), 'credits': credits})
+        else:
+            return jsonify({'error': 'Database error'}), 500
+
+@app.route('/api/credits/<subject_code>', methods=['DELETE'])
+def delete_credit_route(subject_code):
+    success = db.delete_credit(subject_code)
+    if success:
+        CREDIT_MAP.pop(subject_code.upper(), None)
+        return jsonify({'success': True})
+    return jsonify({'error': 'Failed to delete credit'}), 500
+
+@app.route('/api/classes', methods=['GET', 'POST'])
+def manage_classes():
+    if request.method == 'GET':
+        return jsonify(db.get_all_classes())
+        
+    if request.method == 'POST':
+        data = request.json
+        name, start_usn, end_usn = data.get('name'), data.get('start_usn'), data.get('end_usn')
+        if not all([name, start_usn, end_usn]):
+            return jsonify({'error': 'Missing required fields'}), 400
+            
+        success = db.create_class(name, start_usn, end_usn)
+        if success: return jsonify({'success': True})
+        else: return jsonify({'error': 'Failed to create class'}), 500
+
+@app.route('/api/classes/<int:class_id>', methods=['DELETE', 'PUT'])
+def handle_class_by_id(class_id):
+    if request.method == 'DELETE':
+        success = db.delete_class(class_id)
+        if success: return jsonify({'success': True})
+        else: return jsonify({'error': 'Failed to delete class'}), 500
+        
+    if request.method == 'PUT':
+        data = request.json
+        name, start_usn, end_usn = data.get('name'), data.get('start_usn'), data.get('end_usn')
+        if not all([name, start_usn, end_usn]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        success = db.update_class(class_id, name, start_usn, end_usn)
+        if success: return jsonify({'success': True})
+        else: return jsonify({'error': 'Failed to update class'}), 500
+
+@app.route('/api/student/<usn>', methods=['DELETE'])
+def delete_student_route(usn):
+    success = db.delete_student(usn)
+    if success: return jsonify({'success': True})
+    else: return jsonify({'error': 'Failed to delete student'}), 500
+
+@app.route('/api/class/<int:class_id>/students', methods=['GET'])
+def get_class_students(class_id):
+    classes = db.get_all_classes()
+    target_class = next((c for c in classes if c['id'] == class_id), None)
+    if not target_class: return jsonify({'error': 'Class not found'}), 404
+    
+    usn_list = generate_usn_range(target_class['start_usn'], target_class['end_usn'])
+    if not usn_list: return jsonify({'error': 'Invalid USN range in class definition'}), 400
+    
+    try:
+        conn = db.get_db_connection()
+        with conn.cursor() as cursor:
+            # We need the most recent scrape for each USN in the list
+            placeholders = ','.join(['%s'] * len(usn_list))
+            query = f"SELECT usn, data, MAX(timestamp) as max_time FROM results_cache_v2 WHERE usn IN ({placeholders}) GROUP BY usn, data ORDER BY usn"
+            cursor.execute(query, usn_list)
+            rows = cursor.fetchall()
+        conn.close()
+        
+        students = []
+        for row in rows:
+            data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
+            data = calculate_student_stats(data)
+            students.append(data)
+            
+        return jsonify(students)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    try:
+        conn = db.get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT COUNT(DISTINCT usn) as c FROM results_cache_v2")
+            total_students = cursor.fetchone()['c'] or 0
+            
+            cursor.execute("SELECT COUNT(id) as c FROM classes")
+            total_classes = cursor.fetchone()['c'] or 0
+        conn.close()
+        
+        return jsonify({
+            'total_students': total_students,
+            'total_classes': total_classes
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/student/<usn>', methods=['GET'])
+def get_student_history(usn):
+    """Fetches all cached semesters for a specific student."""
+    usn = usn.upper()
+    try:
+        conn = db.get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT url, data, timestamp FROM results_cache_v2 WHERE usn = %s ORDER BY timestamp DESC", (usn,))
+            rows = cursor.fetchall()
+        conn.close()
+        
+        history = []
+        for row in rows:
+            data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
+            data = calculate_student_stats(data)
+            data['scraped_url'] = row['url']
+            data['scraped_at'] = row['timestamp'].isoformat() if hasattr(row['timestamp'], 'isoformat') else str(row['timestamp'])
+            history.append(data)
+            
+        return jsonify(history)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/history/scrapes', methods=['GET'])
+def get_scrapes():
+    """Fetches all scrape history."""
+    try:
+        history = db.get_scrape_history()
+        return jsonify(history)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @app.route('/download/excel', methods=['POST'])
 def download_excel():
     results_data = request.json
@@ -182,18 +435,6 @@ def download_excel():
         for cell in row: cell.alignment = center_align; cell.border = thin_border
     output = io.BytesIO(); wb.save(output); output.seek(0)
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name='results.xlsx')
-@app.route('/download/pdf', methods=['POST'])
-def download_pdf():
-    results_data = request.json
-    records, display_headers = format_data_for_wide_export(results_data)
-    if not records: return "No data to export", 400
-    rendered_html = render_template('results_template.html', results=records, display_headers=display_headers)
-    try:
-        options = {'orientation': 'Landscape', 'page-size': 'A3', 'margin-top': '0.5in', 'margin-right': '0.5in', 'margin-bottom': '0.5in', 'margin-left': '0.5in'}
-        pdf = pdfkit.from_string(rendered_html, False, configuration=config, options=options)
-        return send_file(io.BytesIO(pdf), mimetype='application/pdf', as_attachment=True, download_name='results.pdf')
-    except Exception as e:
-        print(f"PDF Generation Error: {e}"); return jsonify({'error': 'Could not generate PDF.'}), 500
 def calculate_statistics(df):
     stats = {}
     class_col_name = [col for col in df.columns if 'Class' in col[0]][0]
@@ -306,4 +547,5 @@ def download_analysis():
         return "Error creating analysis file", 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 7860))
+    app.run(host='0.0.0.0', port=port, debug=True)

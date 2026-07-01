@@ -1,30 +1,21 @@
-flask
-selenium
-beautifulsoup4
-pandas
-openpyxl
-pytesseract
-Pillow
-pdfkit
-
-requests
 # Flask Web Framework
-Flask
-Flask-Cors
+flask
+flask-cors
+gunicorn
 
 # Data Handling and Analysis
 pandas
 numpy
 openpyxl
 
-# PDF and Excel Generation
-pdfkit
-
 # Web Scraping and Parsing
-selenium
+requests
 beautifulsoup4
 
-# Image Processing and OCR
+# Image Processing and Captcha Solving
 Pillow
-opencv-python
-pytesseract
+ddddocr
+
+# Database
+pymysql
+python-dotenv

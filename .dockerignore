@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+captcha_debug/
+chromedriver.exe
+tesseract-ocr-w64-setup-5.5.0.20241111 (1).exe
+*.xlsx
+*.exe
+working_proxies.txt
+proxy_checker.py
+result_analyzer.py
+tempCodeRunnerFile.py
+bc.html
+ai chatbot analyze/
+scrap pro
+app
+credits.txt
+README.md
