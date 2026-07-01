@@ -94,8 +94,8 @@ def format_data_for_wide_export(results_data):
     for code in all_subject_codes:
         if not code: continue
         
-        # Adaptive grouping for BXX... scheme electives (e.g., BCS603A, BME654A)
-        match_bxx = re.match(r'^B[A-Z0-9]{2}(\d{3})[A-Z]$', code)
+        # Adaptive grouping for B-scheme electives (e.g., BCS603A, BME654A, BYOK658, BNSS658)
+        match_bxx = re.match(r'^B[A-Z0-9]{2,3}(\d{3})[A-Z]?$', code)
         # Grouping for 18/21 scheme electives (e.g., 18CS641)
         match_old = re.match(r'^(\d{2}[A-Z]{2,3}\d{2})\d$', code)
         
