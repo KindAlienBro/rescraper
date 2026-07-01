@@ -219,12 +219,17 @@ def scrape_chunk():
         # Load fresh credits for accurate SGPA
         fresh_credits = db.get_all_credits()
         
-        results = fetch_vtu_results(usn_list, vtu_url, job_state=None)
+        results, skipped = fetch_vtu_results(usn_list, vtu_url, job_state=None)
+        
         if results:
             results = [calculate_student_stats(r, fresh_credits) for r in results]
-            return jsonify({'success': True, 'scraped_count': len(results), 'results': results})
-        else:
-            return jsonify({'success': False, 'error': 'No results found or process failed.'}), 404
+            
+        return jsonify({
+            'success': True, 
+            'scraped_count': len(results) if results else 0, 
+            'results': results if results else [],
+            'skipped': skipped
+        })
     except Exception as e:
         print(f"[SCRAPE CHUNK ERROR] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

@@ -20,6 +20,8 @@
         rel="stylesheet">
     <!-- Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
@@ -181,6 +183,14 @@
                                     <span id="progress-percent">0%</span>
                                 </div>
                             </div>
+                            
+                            <!-- Skipped Report Button -->
+                            <div id="skipped-report-container" class="hidden" style="margin-top: 15px;">
+                                <button id="btn-download-skipped" class="btn btn-secondary w-full" style="border: 1px solid var(--danger); color: var(--danger);">
+                                    <i class="ph ph-file-pdf"></i> Download Skipped USNs Report
+                                </button>
+                            </div>
+                            
                         </div>
                     </div>
                 </section>
@@ -284,7 +294,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Credits</label>
-                                    <input type="number" id="new-subject-credits" placeholder="3" required min="1"
+                                    <input type="number" id="new-subject-credits" placeholder="3" required min="0"
                                         max="10">
                                 </div>
                                 <button type="submit" class="btn btn-primary w-full">Save Subject</button>

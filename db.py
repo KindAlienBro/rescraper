@@ -1,6 +1,7 @@
 import pymysql
 import json
 import os
+import time
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -85,18 +86,31 @@ def seed_credits_if_empty(hardcoded_map):
     except Exception as e:
         print(f"[DB ERROR] Failed to seed credits: {e}")
 
-def get_all_credits():
-    """Retrieve all subject credits as a dictionary."""
+_CREDITS_CACHE = {}
+_CREDITS_LAST_FETCH = 0
+_CACHE_TTL = 300 # 5 minutes cache to prevent Hostinger max_connections_per_hour (500) errors
+
+def get_all_credits(force_refresh=False):
+    """Retrieve all subject credits as a dictionary with caching."""
+    global _CREDITS_CACHE, _CREDITS_LAST_FETCH
+    
+    current_time = time.time()
+    if not force_refresh and _CREDITS_CACHE and (current_time - _CREDITS_LAST_FETCH < _CACHE_TTL):
+        return _CREDITS_CACHE
+
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
             cursor.execute("SELECT subject_code, credits FROM subject_credits")
             rows = cursor.fetchall()
         conn.close()
-        return {row['subject_code']: row['credits'] for row in rows}
+        
+        _CREDITS_CACHE = {row['subject_code']: row['credits'] for row in rows}
+        _CREDITS_LAST_FETCH = current_time
+        return _CREDITS_CACHE
     except Exception as e:
         print(f"[DB ERROR] Failed to fetch credits: {e}")
-        return {}
+        return _CREDITS_CACHE if _CREDITS_CACHE else {}
 
 def save_credit(subject_code, credits):
     """Save or update a subject credit."""
@@ -109,6 +123,12 @@ def save_credit(subject_code, credits):
             )
         conn.commit()
         conn.close()
+        
+        # Instantly update cache
+        global _CREDITS_CACHE
+        if _CREDITS_CACHE is not None:
+            _CREDITS_CACHE[subject_code.upper()] = int(credits)
+            
         return True
     except Exception as e:
         print(f"[DB ERROR] Failed to save credit: {e}")

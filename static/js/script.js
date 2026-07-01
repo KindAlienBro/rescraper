@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
+
     // --- Navigation & Layout ---
     const navItems = {
         'OVERVIEW': { el: document.getElementById('nav-overview'), section: document.getElementById('overview-section'), title: 'Overview' },
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function switchView(mode) {
         if (currentMode === mode && mode !== 'ARCHIVE' && mode !== 'CLASSES') return;
-        
+
         // Remove active class and hide sections
         Object.values(navItems).forEach(item => {
             item.el.classList.remove('active');
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadArchive() {
         const grid = document.getElementById('student-grid');
         const badge = document.getElementById('total-count-badge');
-        
+
         document.getElementById('results-title').textContent = 'Student Profiles';
         grid.innerHTML = '<div class="spinner"></div><p class="status-text" style="grid-column:1/-1; text-align:center;">Fetching database...</p>';
         badge.textContent = '...';
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(API_URLS[0] + '/api/students/all');
             if (!res.ok) throw new Error("Failed to fetch archive");
             const data = await res.json();
-            
+
             resultsData = data;
             currentFilteredData = [...resultsData];
             applyFilters();
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'https://vorniity-rescraper-api.onrender.com',
         'https://kindalien-vorniity-rescraper-api.hf.space'
     ];
-    
+
     function generateUsnList(start, end) {
         const list = [];
         try {
@@ -126,9 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = startNum; i <= endNum; i++) {
                 list.push(`${prefix}${i.toString().padStart(3, '0')}`);
             }
-        } catch(e) {}
+        } catch (e) { }
         return list;
     }
+
+    let currentSkippedUsns = []; // Stores {usn: "...", reason: "..."}
 
     const scrapeForm = document.getElementById('usn-form');
     const fetchBtn = document.getElementById('fetch-btn');
@@ -156,6 +158,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // UI Reset
             resultsData = [];
             currentFilteredData = [];
+            currentSkippedUsns = []; // Reset skipped tracker
+            const skippedContainer = document.getElementById('skipped-report-container');
+            if (skippedContainer) skippedContainer.classList.add('hidden');
             loader.classList.remove('hidden');
             progContainer.classList.remove('hidden');
             fetchBtn.disabled = true;
@@ -191,21 +196,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-                    
+
                     const data = await res.json();
-                    
+
                     if (data.success && data.results) {
-                        resultsData.push(...data.results);
+                        resultsData = resultsData.concat(data.results);
                     }
-                    
+                    if (data.skipped && data.skipped.length > 0) {
+                        currentSkippedUsns = currentSkippedUsns.concat(data.skipped);
+                    }
+
                     completedUsns += chunk.length;
-                    
+
                     // Update Progress UI
                     const perc = Math.round((completedUsns / totalUsns) * 100);
                     progFill.style.width = `${perc}%`;
                     progCount.textContent = `${completedUsns} / ${totalUsns}`;
                     progPercent.textContent = `${perc}%`;
-                    
+
                     const timeElapsed = (Date.now() - scrapeForm.dataset.startTime) / 1000;
                     if (timeElapsed > 0) {
                         const speedVal = completedUsns / timeElapsed;
@@ -226,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         await processChunk(chunk, retryCount + 1);
                     } else {
                         // Max retries reached, still consider it processed to avoid infinite hang
-                        completedUsns += chunk.length; 
+                        completedUsns += chunk.length;
                     }
                 }
             };
@@ -234,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Process maximum 3 chunks concurrently across the APIs
             const CONCURRENCY_LIMIT = Math.min(3, API_URLS.length * 2);
             let chunkIndex = 0;
-            
+
             const worker = async () => {
                 while (chunkIndex < chunks.length) {
                     const chunk = chunks[chunkIndex++];
@@ -253,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const timeTaken = ((Date.now() - scrapeForm.dataset.startTime) / 1000).toFixed(1);
             statusMsg.textContent = `Distributed scrape completed in ${timeTaken}s!`;
             statusMsg.style.color = "var(--success)";
-            
+
             // Save Scrape History
             try {
                 const apiToSave = API_URLS[0]; // Just use the first API for saving state
@@ -273,18 +281,58 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error("Failed to save history", err);
             }
-            
+
             currentFilteredData = [...resultsData];
             fetchOverviewStats();
             applyFilters();
-            
+
             setTimeout(() => {
                 fetchBtn.disabled = false;
                 loader.classList.add('hidden');
                 document.getElementById('results-title').textContent = 'Live Scrape Results';
+
+                // Show PDF Download button if there are skipped USNs
+                if (currentSkippedUsns.length > 0 && document.getElementById('skipped-report-container')) {
+                    document.getElementById('skipped-report-container').classList.remove('hidden');
+                }
+
                 navItems['SCRAPE'].section.classList.add('hidden');
                 navItems['ARCHIVE'].section.classList.remove('hidden');
             }, 2000);
+        });
+    }
+
+    // PDF Generation for Skipped USNs
+    const btnDownloadSkipped = document.getElementById('btn-download-skipped');
+    if (btnDownloadSkipped) {
+        btnDownloadSkipped.addEventListener('click', () => {
+            if (currentSkippedUsns.length === 0) {
+                alert("No skipped USNs to report!");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(16);
+            doc.text('Skipped USNs Report', 14, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+
+            const tableData = currentSkippedUsns.map(item => [item.usn, item.reason]);
+
+            doc.autoTable({
+                startY: 35,
+                head: [['USN', 'Reason for Failure']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [43, 62, 235] },
+                styles: { fontSize: 10, cellPadding: 3 }
+            });
+
+            doc.save('Skipped_USNs_Report.pdf');
         });
     }
 
@@ -302,20 +350,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyFilters() {
         const q = (searchInput.value || '').toLowerCase();
         const stat = (statusFilter.value || 'ALL');
-        
+
         currentFilteredData = resultsData.filter(st => {
             const matchName = (st.student_name || '').toLowerCase().includes(q);
             const matchUSN = (st.usn || '').toLowerCase().includes(q);
             const matchStatus = (stat === 'ALL') || ((st.class || '') === stat);
             return (matchName || matchUSN) && matchStatus;
         });
-        
+
         renderStudentGrid(currentFilteredData);
     }
 
     function renderStudentGrid(data) {
         badge.textContent = `${data.length} Students`;
-        
+
         if (data.length === 0) {
             studentGrid.innerHTML = `<p class="status-text" style="grid-column: 1/-1; text-align:center;">No profiles match your filter.</p>`;
             return;
@@ -325,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const sgpa = st.sgpa || 'N/A';
             const statusClass = st.class ? st.class.toLowerCase() : 'fail';
             const safeName = (st.student_name || '').replace(/'/g, "\\'");
-            
+
             return `
             <div class="profile-card" onclick="openHistoryModal('${st.usn}', '${safeName}')">
                 <div class="profile-header">
@@ -359,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Modal Logic ---
     const historyModal = document.getElementById('history-modal');
     const closeModalBtn = document.getElementById('close-modal');
-    
+
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', () => historyModal.classList.add('hidden'));
     }
@@ -369,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('modal-student-usn').textContent = usn;
         const tabsContainer = document.getElementById('history-tabs');
         const contentContainer = document.getElementById('history-tab-content');
-        
+
         tabsContainer.innerHTML = '';
         contentContainer.innerHTML = '<div class="spinner"></div>';
         historyModal.classList.remove('hidden');
@@ -378,20 +426,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`${API_URLS[0]}/api/student/${usn}`);
             if (!res.ok) throw new Error("Failed to load history");
             const historyData = await res.json();
-            
+
             if (historyData.length === 0) {
                 contentContainer.innerHTML = '<p class="text-muted">No cached history found.</p>';
                 return;
             }
 
             // Render Tabs
-            tabsContainer.innerHTML = historyData.map((d, i) => 
-                `<button class="modal-tab ${i===0?'active':''}" onclick="switchModalTab(${i}, this)">Sem ${d.semester}</button>`
+            tabsContainer.innerHTML = historyData.map((d, i) =>
+                `<button class="modal-tab ${i === 0 ? 'active' : ''}" onclick="switchModalTab(${i}, this)">Sem ${d.semester}</button>`
             ).join('');
 
             // Store data globally for tab switching
             window.currentHistoryData = historyData;
-            
+
             // Render first tab content
             renderModalContent(historyData[0]);
 
@@ -435,13 +483,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div>${sub.internal_marks}</div>
                     <div>${sub.external_marks}</div>
                     <div style="font-weight:600;">${sub.total}</div>
-                    <div style="color:${sub.result==='P'?'var(--success)':'var(--error)'}; font-weight:600;">${sub.result}</div>
+                    <div style="color:${sub.result === 'P' ? 'var(--success)' : 'var(--error)'}; font-weight:600;">${sub.result}</div>
                 </div>`;
             });
         } else {
             html += `<div class="subject-row" style="grid-column:1/-1;">No subject data.</div>`;
         }
-        
+
         html += `</div>`;
         contentContainer.innerHTML = html;
     }
@@ -492,12 +540,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(API_URLS[0] + '/api/classes');
             const data = await res.json();
             document.getElementById('total-classes-badge').textContent = data.length;
-            
+
             if (data.length === 0) {
                 classesGrid.innerHTML = '<p class="text-muted" style="text-align:center; padding:16px;">No classes created yet.</p>';
                 return;
             }
-            
+
             classesGrid.innerHTML = data.map(cls => `
                 <div class="subject-item clickable" onclick="loadClassStudents(${cls.id}, '${cls.name}')">
                     <div class="card-header-flex" style="margin-bottom:8px;">
@@ -524,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Remove from resultsData
             resultsData = resultsData.filter(st => st.usn !== usn);
             applyFilters();
-        } catch(err) {
+        } catch (err) {
             alert(err.message);
         }
     };
@@ -534,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navItems['CLASSES'].section.classList.add('hidden');
         navItems['ARCHIVE'].section.classList.remove('hidden');
         document.getElementById('results-title').textContent = `Class: ${name}`;
-        
+
         studentGrid.innerHTML = `<div class="spinner"></div>`;
         document.getElementById('total-count-badge').textContent = '...';
 
@@ -555,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await fetch(`${API_URLS[0]}/api/classes/${id}`, { method: 'DELETE' });
             fetchClasses();
-        } catch(err) {}
+        } catch (err) { }
     }
 
     const addClassForm = document.getElementById('add-class-form');
@@ -565,26 +613,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const msg = document.getElementById('class-status-msg');
             msg.textContent = 'Saving...';
             msg.style.color = 'var(--text-secondary)';
-            
+
             const payload = {
                 name: document.getElementById('new-class-name').value.trim(),
                 start_usn: document.getElementById('new-class-start').value.trim(),
                 end_usn: document.getElementById('new-class-end').value.trim()
             };
-            
+
             try {
                 const res = await fetch(API_URLS[0] + '/api/classes', {
                     method: 'POST',
-                    headers:{'Content-Type':'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (!res.ok) throw new Error("Failed to create class");
-                
+
                 msg.textContent = 'Class created!';
                 msg.style.color = 'var(--success)';
                 addClassForm.reset();
                 fetchClasses();
-                setTimeout(() => msg.textContent='', 3000);
+                setTimeout(() => msg.textContent = '', 3000);
             } catch (err) {
                 msg.textContent = err.message;
                 msg.style.color = 'var(--error)';
@@ -600,12 +648,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             const ObjectKeys = Object.keys(data).sort();
             document.getElementById('total-subjects-badge').textContent = ObjectKeys.length;
-            
+
             if (ObjectKeys.length === 0) {
                 subjectsGrid.innerHTML = '<p class="text-muted" style="text-align:center; padding:16px;">No subjects found.</p>';
                 return;
             }
-            
+
             subjectsGrid.innerHTML = ObjectKeys.map(code => `
                 <div class="subject-item" style="flex-direction:row; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:12px;">
@@ -652,22 +700,22 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const msg = document.getElementById('edit-class-status-msg');
             msg.textContent = 'Updating...';
-            
+
             const id = document.getElementById('edit-class-id').value;
             const payload = {
                 name: document.getElementById('edit-class-name').value.trim(),
                 start_usn: document.getElementById('edit-class-start').value.trim(),
                 end_usn: document.getElementById('edit-class-end').value.trim()
             };
-            
+
             try {
                 const res = await fetch(`${API_URLS[0]}/api/classes/${id}`, {
                     method: 'PUT',
-                    headers:{'Content-Type':'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (!res.ok) throw new Error("Failed to update class");
-                
+
                 msg.textContent = 'Class updated!';
                 msg.style.color = 'var(--success)';
                 fetchClasses();
@@ -686,23 +734,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const msg = document.getElementById('credit-status-msg');
             const code = document.getElementById('new-subject-code').value.trim();
             const credits = document.getElementById('new-subject-credits').value;
-            
+
             msg.textContent = 'Saving...';
             msg.style.color = 'var(--text-secondary)';
-            
+
             try {
                 const res = await fetch(API_URLS[0] + '/api/credits', {
                     method: 'POST',
-                    headers:{'Content-Type':'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ subject_code: code, credits: parseInt(credits) })
                 });
                 if (!res.ok) throw new Error("Failed to save");
-                
+
                 msg.textContent = 'Subject saved!';
                 msg.style.color = 'var(--success)';
                 addCreditForm.reset();
                 fetchCredits();
-                setTimeout(() => msg.textContent='', 3000);
+                setTimeout(() => msg.textContent = '', 3000);
             } catch (err) {
                 msg.textContent = err.message;
                 msg.style.color = 'var(--error)';
@@ -716,29 +764,29 @@ document.addEventListener('DOMContentLoaded', () => {
         clearDbBtn.addEventListener('click', async () => {
             const msg = document.getElementById('clear-db-msg');
             const confirmWipe = confirm("WARNING: This will permanently delete ALL scraped student data, results, and scrape history.\n\nYour saved classes and subjects will NOT be deleted.\n\nAre you absolutely sure you want to proceed?");
-            
+
             if (!confirmWipe) return;
-            
+
             clearDbBtn.disabled = true;
             clearDbBtn.textContent = 'Clearing...';
             msg.textContent = '';
-            
+
             try {
                 const res = await fetch(API_URLS[0] + '/api/database/clear', {
                     method: 'DELETE'
                 });
                 const data = await res.json();
-                
+
                 if (!res.ok) throw new Error(data.message || "Failed to clear database");
-                
+
                 msg.textContent = 'Database cleared successfully!';
                 msg.style.color = 'var(--success)';
-                
+
                 // Refresh data globally
                 resultsData = [];
                 currentFilteredData = [];
                 fetchOverviewStats();
-                
+
             } catch (err) {
                 msg.textContent = err.message;
                 msg.style.color = 'var(--error)';
@@ -753,14 +801,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchOverviewStats();
 
     // --- Scrape History Logic ---
-    window.fetchScrapeHistory = async function() {
+    window.fetchScrapeHistory = async function () {
         const grid = document.getElementById('history-grid');
         grid.innerHTML = '<div class="spinner"></div>';
         try {
             const res = await fetch(API_URLS[0] + '/api/history/scrapes');
             if (!res.ok) throw new Error("Failed to fetch scrape history");
             const data = await res.json();
-            
+
             if (data.length === 0) {
                 grid.innerHTML = '<p class="text-muted" style="text-align:center; padding: 20px; grid-column:1/-1;">No scrape history found.</p>';
                 return;
@@ -769,11 +817,11 @@ document.addEventListener('DOMContentLoaded', () => {
             grid.innerHTML = data.map(job => {
                 const statusClass = job.status === 'completed' ? 'fcd' : (job.status === 'error' ? 'fail' : 'sc');
                 const timeStr = job.time_taken ? `${job.time_taken.toFixed(1)}s` : '-';
-                
+
                 // Format in IST
                 const dateObj = new Date(job.timestamp + "Z"); // Add Z to specify UTC input from SQLite
                 const dateStr = dateObj.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-                
+
                 return `
                 <div class="profile-card" style="cursor: default;">
                     <div class="profile-header">

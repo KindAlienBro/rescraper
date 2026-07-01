@@ -140,7 +140,7 @@ def parse_result_html(html_content, usn):
     # --- Handle invalid or unavailable results ---
     if re.search(r'Invalid USN|Results are not yet available', html_content, re.I):
         print(f"[{usn}] Invalid USN or results not available.")
-        return None
+        return None, "Invalid USN or Results not available"
 
     try:
         # --- Flexible extraction for USN and Name ---
@@ -192,7 +192,7 @@ def parse_result_html(html_content, usn):
             with open(f"failed_subjects_{usn}.html", "w", encoding="utf-8") as f:
                 f.write(html_content)
             print(f"[{usn}] Result table or header row not found. Saved HTML to failed_subjects_{usn}.html")
-            return None
+            return None, "Result table or header row not found"
 
         # 2. Extract Data Rows by looking at siblings of the header row
         current_row = header_row.find_next_sibling()
@@ -221,7 +221,7 @@ def parse_result_html(html_content, usn):
             with open(f"failed_subjects_{usn}.html", "w", encoding="utf-8") as f:
                 f.write(html_content)
             print(f"[{usn}] No subjects found for {name_value}. Saved HTML to failed_subjects_{usn}.html")
-            return None
+            return None, "No subjects found in results table"
 
         student_result = {
             'usn': usn_value,
@@ -230,11 +230,11 @@ def parse_result_html(html_content, usn):
         }
 
         print(f"✅ Parsed: {name_value} ({usn_value}) — {len(subjects)} subjects.")
-        return student_result
+        return student_result, None
 
     except Exception as e:
         print(f"[{usn}] Error during parsing: {e}")
-        return None
+        return None, f"Parsing error: {str(e)}"
 
 
 def fetch_single_result(session, vtu_url, usn, max_attempts=25, job_state=None):
@@ -344,30 +344,20 @@ def fetch_single_result(session, vtu_url, usn, max_attempts=25, job_state=None):
             # --- CAPTCHA SUCCESS! ---
             evolver.report_success(strategy_used)
             
-            # Step 8: Parse the result
+            # Step 8: Try parsing
             if job_state:
                 job_state['progress'] = f"Parsing results for {usn}..."
-            
-            result_data = parse_result_html(result_html, usn)
-            if result_data:
-                return result_data
-            else:
-                # If parse failed but no captcha error, the USN might be invalid — stop retrying
-                print(f"[{usn}] Parsing failed — USN may be invalid or results not available.")
-                return None
+            student_data, error_reason = parse_result_html(result_html, usn)
+            if student_data:
+                return student_data, None
+            elif error_reason:
+                return None, error_reason
                 
-        except requests.exceptions.Timeout:
-            print(f"[TIMEOUT] for {usn} on attempt {attempt + 1}. Retrying...")
-            time.sleep(1)
-        except requests.exceptions.RequestException as e:
-            print(f"[NETWORK ERROR] Request error for {usn}: {e}. Retrying...")
-            time.sleep(1)
         except Exception as e:
-            print(f"[ERROR] Unexpected error for {usn}: {e}. Retrying...")
-            time.sleep(1)
-    
-    print(f"--- FAILED to fetch result for {usn} after {max_attempts} attempts. ---")
-    return None
+            print(f"[{usn}] Network or other error: {e}")
+            
+    print(f"[FAIL] {usn} completely failed after {max_attempts} attempts.")
+    return None, "Max captcha retries exceeded or connection timeout"
 
 
 def fetch_vtu_results(usn_list, vtu_url, job_state=None):
@@ -378,7 +368,7 @@ def fetch_vtu_results(usn_list, vtu_url, job_state=None):
     MAX_ATTEMPTS = 10
     all_results = []
     total_usns = len(usn_list)
-    failed_usns = []
+    failed_usns = {} # map of USN -> Reason
     
     print(f"\n[INFO] Starting concurrent scrape for {total_usns} USNs using requests + ddddocr.\n")
     
@@ -403,7 +393,7 @@ def fetch_vtu_results(usn_list, vtu_url, job_state=None):
             return
             
         session = session_pool.get_session()
-        result = fetch_single_result(session, vtu_url, usn, MAX_ATTEMPTS, job_state)
+        result, error_reason = fetch_single_result(session, vtu_url, usn, MAX_ATTEMPTS, job_state)
         
         if result:
             with results_lock:
@@ -415,7 +405,7 @@ def fetch_vtu_results(usn_list, vtu_url, job_state=None):
         else:
             print(f"[FAILED] Failed to fetch {usn} on first pass.")
             with failed_lock:
-                failed_usns.append(usn)
+                failed_usns[usn] = error_reason
 
     # Launch threads (Max 3 to avoid instant IP ban without proxies)
     MAX_WORKERS = 3
@@ -432,7 +422,7 @@ def fetch_vtu_results(usn_list, vtu_url, job_state=None):
         print(f"\n[INFO] Doing a second pass for {len(failed_usns)} failed USNs sequentially with higher retry limit...\n")
         time.sleep(3) # Let the server breathe before hitting it again
         
-        for j, usn in enumerate(failed_usns):
+        for j, usn in enumerate(failed_usns.keys()):
             if job_state:
                 job_state['progress'] = f"Retry pass for failed USN {usn} ({j + 1}/{len(failed_usns)})"
                 job_state['current_usn'] = usn
@@ -440,12 +430,14 @@ def fetch_vtu_results(usn_list, vtu_url, job_state=None):
             time.sleep(random.uniform(2, 4))
                 
             session = session_pool.get_session()
-            result = fetch_single_result(session, vtu_url, usn, max_attempts=30, job_state=job_state)
+            result, error_reason = fetch_single_result(session, vtu_url, usn, max_attempts=30, job_state=job_state)
             if result:
                 all_results.append(result)
                 save_cached_result(usn, vtu_url, result)
                 print(f"[SUCCESS] Fetched {usn} on second pass!")
+                failed_usns[usn] = None # Clear failure
             else:
+                failed_usns[usn] = error_reason # Update with final failure reason
                 print(f"[SKIP] Permanently skipped {usn}. May be invalid USN.")
             if job_state: 
                 job_state['completed'] += 1
@@ -453,5 +445,8 @@ def fetch_vtu_results(usn_list, vtu_url, job_state=None):
     # Sort results by USN to keep them in order
     all_results.sort(key=lambda x: x['usn'])
     
-    print(f"\n[DONE] Fetched {len(all_results)}/{total_usns} results.\n")
-    return all_results
+    # Filter out successfully retried USNs
+    final_skipped = [{"usn": u, "reason": r} for u, r in failed_usns.items() if r is not None]
+    
+    print(f"\n[INFO] Finished Concurrent Scrape. Total successful: {len(all_results)} / {total_usns}")
+    return all_results, final_skipped
