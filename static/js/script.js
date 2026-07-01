@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Overview Logic ---
     async function fetchOverviewStats() {
         try {
-            const res = await fetch('/api/stats');
+            const res = await fetch(API_URLS[0] + '/api/stats');
             const data = await res.json();
             document.getElementById('stat-students').textContent = data.total_students || 0;
             document.getElementById('stat-classes').textContent = data.total_classes || 0;
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.textContent = '...';
 
         try {
-            const res = await fetch('/api/students/all');
+            const res = await fetch(API_URLS[0] + '/api/students/all');
             if (!res.ok) throw new Error("Failed to fetch archive");
             const data = await res.json();
             
@@ -112,10 +112,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Distributed Scrape Orchestration Logic ---
     const API_URLS = [
-        'http://127.0.0.1:5000', // Default local API
-        // Add your deployed API URLs here:
-        // 'https://my-render-api.onrender.com',
-        // 'https://my-railway-api.up.railway.app'
+        'https://vorniity-rescraper-api.onrender.com',
+        'https://kindalien-vorniity-rescraper-api.hf.space'
     ];
     
     function generateUsnList(start, end) {
@@ -348,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         historyModal.classList.remove('hidden');
 
         try {
-            const res = await fetch(`/api/student/${usn}`);
+            const res = await fetch(`${API_URLS[0]}/api/student/${usn}`);
             if (!res.ok) throw new Error("Failed to load history");
             const historyData = await res.json();
             
@@ -432,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
             excelBtn.disabled = true;
 
             try {
-                const response = await fetch('/download/excel', {
+                const response = await fetch(API_URLS[0] + '/download/excel', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(currentFilteredData)
@@ -462,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const classesGrid = document.getElementById('classes-grid');
     async function fetchClasses() {
         try {
-            const res = await fetch('/api/classes');
+            const res = await fetch(API_URLS[0] + '/api/classes');
             const data = await res.json();
             document.getElementById('total-classes-badge').textContent = data.length;
             
@@ -492,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         if (!confirm("Are you sure you want to delete this student from the database?")) return;
         try {
-            const res = await fetch(`/api/student/${usn}`, { method: 'DELETE' });
+            const res = await fetch(`${API_URLS[0]}/api/student/${usn}`, { method: 'DELETE' });
             if (!res.ok) throw new Error("Failed to delete student");
             // Remove from resultsData
             resultsData = resultsData.filter(st => st.usn !== usn);
@@ -512,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('total-count-badge').textContent = '...';
 
         try {
-            const res = await fetch(`/api/class/${id}/students`);
+            const res = await fetch(`${API_URLS[0]}/api/class/${id}/students`);
             if (!res.ok) throw new Error("Failed to fetch class");
             resultsData = await res.json();
             currentFilteredData = [...resultsData];
@@ -526,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         if (!confirm("Delete this class?")) return;
         try {
-            await fetch(`/api/classes/${id}`, { method: 'DELETE' });
+            await fetch(`${API_URLS[0]}/api/classes/${id}`, { method: 'DELETE' });
             fetchClasses();
         } catch(err) {}
     }
@@ -546,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             
             try {
-                const res = await fetch('/api/classes', {
+                const res = await fetch(API_URLS[0] + '/api/classes', {
                     method: 'POST',
                     headers:{'Content-Type':'application/json'},
                     body: JSON.stringify(payload)
@@ -569,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const subjectsGrid = document.getElementById('subjects-grid');
     async function fetchCredits() {
         try {
-            const res = await fetch('/api/credits');
+            const res = await fetch(API_URLS[0] + '/api/credits');
             const data = await res.json();
             const ObjectKeys = Object.keys(data).sort();
             document.getElementById('total-subjects-badge').textContent = ObjectKeys.length;
@@ -597,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         if (!confirm(`Delete subject ${code}?`)) return;
         try {
-            await fetch(`/api/credits/${code}`, { method: 'DELETE' });
+            await fetch(`${API_URLS[0]}/api/credits/${code}`, { method: 'DELETE' });
             fetchCredits();
         } catch (err) {
             alert(err.message);
@@ -634,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             
             try {
-                const res = await fetch(`/api/classes/${id}`, {
+                const res = await fetch(`${API_URLS[0]}/api/classes/${id}`, {
                     method: 'PUT',
                     headers:{'Content-Type':'application/json'},
                     body: JSON.stringify(payload)
@@ -664,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
             msg.style.color = 'var(--text-secondary)';
             
             try {
-                const res = await fetch('/api/credits', {
+                const res = await fetch(API_URLS[0] + '/api/credits', {
                     method: 'POST',
                     headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({ subject_code: code, credits: parseInt(credits) })
@@ -683,6 +681,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Clear Database Logic ---
+    const clearDbBtn = document.getElementById('clear-db-btn');
+    if (clearDbBtn) {
+        clearDbBtn.addEventListener('click', async () => {
+            const msg = document.getElementById('clear-db-msg');
+            const confirmWipe = confirm("WARNING: This will permanently delete ALL scraped student data, results, and scrape history.\n\nYour saved classes and subjects will NOT be deleted.\n\nAre you absolutely sure you want to proceed?");
+            
+            if (!confirmWipe) return;
+            
+            clearDbBtn.disabled = true;
+            clearDbBtn.textContent = 'Clearing...';
+            msg.textContent = '';
+            
+            try {
+                const res = await fetch(API_URLS[0] + '/api/database/clear', {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                
+                if (!res.ok) throw new Error(data.message || "Failed to clear database");
+                
+                msg.textContent = 'Database cleared successfully!';
+                msg.style.color = 'var(--success)';
+                
+                // Refresh data globally
+                resultsData = [];
+                currentFilteredData = [];
+                fetchOverviewStats();
+                
+            } catch (err) {
+                msg.textContent = err.message;
+                msg.style.color = 'var(--error)';
+            } finally {
+                clearDbBtn.disabled = false;
+                clearDbBtn.textContent = 'Clear Database';
+            }
+        });
+    }
+
     // Initialize default view
     fetchOverviewStats();
 
@@ -691,7 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = document.getElementById('history-grid');
         grid.innerHTML = '<div class="spinner"></div>';
         try {
-            const res = await fetch('/api/history/scrapes');
+            const res = await fetch(API_URLS[0] + '/api/history/scrapes');
             if (!res.ok) throw new Error("Failed to fetch scrape history");
             const data = await res.json();
             

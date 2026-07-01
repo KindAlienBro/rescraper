@@ -690,7 +690,7 @@ p { margin-bottom: 16px; }
 
 /* ================= Responsiveness (Mobile) ================= */
 .mobile-only {
-    display: none;
+    display: none !important;
 }
 .icon-btn {
     background: transparent;

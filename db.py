@@ -260,3 +260,21 @@ def save_cached_result(usn, url, result_dict):
         conn.close()
     except Exception as e:
         print(f"[CACHE ERROR] Failed to save cache for {usn}: {e}")
+
+def clear_database():
+    """Wipe all student scraped data, results, and history."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+            cursor.execute("TRUNCATE TABLE results;")
+            cursor.execute("TRUNCATE TABLE students;")
+            cursor.execute("TRUNCATE TABLE scrape_jobs;")
+            cursor.execute("TRUNCATE TABLE results_cache_v2;")
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+        conn.commit()
+        conn.close()
+        return True, "Database cleared successfully"
+    except Exception as e:
+        print(f"[DB ERROR] Failed to clear database: {e}")
+        return False, str(e)

@@ -546,6 +546,14 @@ def download_analysis():
         print(f"Error creating analysis workbook: {e}")
         return "Error creating analysis file", 500
 
+# --- NEW: Route to Handle Clearing Database ---
+@app.route('/api/database/clear', methods=['DELETE'])
+def clear_database():
+    success, msg = db.clear_database()
+    if success:
+        return jsonify({'success': True, 'message': msg}), 200
+    return jsonify({'success': False, 'message': msg}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7860))
     app.run(host='0.0.0.0', port=port, debug=True)
