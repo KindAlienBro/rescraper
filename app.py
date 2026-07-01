@@ -172,13 +172,31 @@ def calculate_student_stats(student, credit_map=None):
         subj_code = subject.get('subject_code')
         if not subj_code: continue
         
-        # --- Smart Subject Auto-Discovery ---
-        if subj_code not in credit_map:
+        # --- Smart Subject Resolution & Auto-Discovery ---
+        credits = credit_map.get(subj_code)
+        
+        # If not found directly, check if user added a wildcard group (BXXX or BXX)
+        if credits is None:
+            match_bxx = re.match(r'^B[A-Z0-9]{2,3}(\d{3})[A-Z]?$', subj_code)
+            if match_bxx:
+                num_code = match_bxx.group(1)
+                group_key_3x = f"BXXX{num_code}" # e.g., BXXX658
+                group_key_2x = f"BXX{num_code}"  # e.g., BXX658
+                
+                if group_key_3x in credit_map:
+                    credits = credit_map[group_key_3x]
+                elif group_key_2x in credit_map:
+                    credits = credit_map[group_key_2x]
+        
+        # If still not found anywhere, auto-add it safely with 0 credits
+        if credits is None:
             print(f"[SMART ADD] Auto-adding unknown subject '{subj_code}' to database.")
             db.save_credit(subj_code, 0)
-            credit_map[subj_code] = 0 # Update memory map instantly
+            credits = 0
+            
+        # Temporarily cache this mapping so we don't repeat the regex
+        credit_map[subj_code] = credits
 
-        credits = credit_map.get(subj_code)
         if credits is not None:
             grade_point = get_grade_point(subject.get('total'), res)
             total_credit_points += credits
