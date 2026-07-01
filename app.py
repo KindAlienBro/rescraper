@@ -236,7 +236,9 @@ def scrape_chunk():
     try:
         # Load fresh credits for accurate SGPA
         fresh_credits = db.get_all_credits()
-        
+        if not fresh_credits:
+            fresh_credits = CREDIT_MAP.copy() # Fallback if DB limit is hit
+            
         results, skipped = fetch_vtu_results(usn_list, vtu_url, job_state=None)
         
         if results:
