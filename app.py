@@ -186,7 +186,8 @@ def calculate_student_stats(student):
     return student
 # ... (all routes up to /analyze are the same) ...
 @app.route('/')
-def index(): return render_template('index.html')
+def index():
+    return jsonify({"status": "Vorniity API is running! Go to vorniity.com to use the dashboard."})
 @app.route('/api/scrape_chunk', methods=['POST'])
 def scrape_chunk():
     """
@@ -382,6 +383,28 @@ def get_scrapes():
     try:
         history = db.get_scrape_history()
         return jsonify(history)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/history/save', methods=['POST'])
+def save_history():
+    """Saves a scrape job to the history database."""
+    try:
+        data = request.json
+        import uuid
+        job_id = str(uuid.uuid4())
+        success = db.save_scrape_history(
+            job_id,
+            data.get('start_usn', ''),
+            data.get('end_usn', ''),
+            data.get('total_usns', 0),
+            data.get('completed', 0),
+            data.get('time_taken', 0),
+            data.get('status', 'Completed')
+        )
+        if success:
+            return jsonify({'success': True}), 200
+        return jsonify({'error': 'Database error'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 @app.route('/download/excel', methods=['POST'])

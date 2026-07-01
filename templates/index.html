@@ -5,6 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vorniity | Professional Dashboard</title>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Vorniity ReScraper - A powerful, distributed web scraping and analytics dashboard for VTU results. A product of Vorniity.">
+    <meta name="keywords" content="Vorniity, ReScraper, VTU results, VTU scraper, data analytics, dashboard">
+    <meta name="author" content="Vorniity">
+    <meta property="og:title" content="Vorniity ReScraper Dashboard">
+    <meta property="og:description" content="Extract batch VTU results directly into your local database with Vorniity ReScraper.">
+    <meta property="og:type" content="website">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -164,8 +171,10 @@
                             <div class="spinner"></div>
                             <p class="status-text" id="status-message">Connecting to VTU servers...</p>
 
-                            <div class="progress-track hidden" id="progress-container">
-                                <div class="progress-fill" id="progress-fill"></div>
+                            <div id="progress-container" class="hidden">
+                                <div class="progress-track">
+                                    <div class="progress-fill" id="progress-fill"></div>
+                                </div>
                                 <div class="progress-meta" style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
                                     <span id="progress-count">0 / 0</span>
                                     <span id="progress-speed">0 USNs/s</span>

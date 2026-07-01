@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
             scrapeForm.dataset.startTime = Date.now();
 
             // Chunking
-            const CHUNK_SIZE = 5;
+            const CHUNK_SIZE = 2;
             const chunks = [];
             for (let i = 0; i < allUsns.length; i += CHUNK_SIZE) {
                 chunks.push(allUsns.slice(i, i + CHUNK_SIZE));
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentApiIndex++;
 
                 try {
-                    statusMsg.textContent = `Scraping: ${chunk[0]}... (using ${new URL(apiUrl).hostname})`;
+                    statusMsg.textContent = `Scraping: ${chunk[0]}...`;
                     const res = await fetch(`${apiUrl}/api/scrape_chunk`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -207,8 +207,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     progPercent.textContent = `${perc}%`;
                     
                     const timeElapsed = (Date.now() - scrapeForm.dataset.startTime) / 1000;
-                    const speed = timeElapsed > 0 ? (completedUsns / timeElapsed).toFixed(1) : 0;
-                    if (progSpeed) progSpeed.textContent = `${speed} USNs/s`;
+                    if (timeElapsed > 0) {
+                        const speedVal = completedUsns / timeElapsed;
+                        if (speedVal < 1 && speedVal > 0) {
+                            const secsPerUsn = (1 / speedVal).toFixed(1);
+                            if (progSpeed) progSpeed.textContent = `${secsPerUsn}s / USN`;
+                        } else {
+                            if (progSpeed) progSpeed.textContent = `${speedVal.toFixed(1)} USNs/s`;
+                        }
+                    } else {
+                        if (progSpeed) progSpeed.textContent = `0 USNs/s`;
+                    }
 
                 } catch (err) {
                     console.error(`Chunk failed on ${apiUrl}:`, err);
@@ -244,6 +253,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const timeTaken = ((Date.now() - scrapeForm.dataset.startTime) / 1000).toFixed(1);
             statusMsg.textContent = `Distributed scrape completed in ${timeTaken}s!`;
             statusMsg.style.color = "var(--success)";
+            
+            // Save Scrape History
+            try {
+                const apiToSave = API_URLS[0]; // Just use the first API for saving state
+                await fetch(`${apiToSave}/api/history/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start_usn: start,
+                        end_usn: end,
+                        total_usns: totalUsns,
+                        completed: completedUsns,
+                        time_taken: timeTaken,
+                        status: 'Completed'
+                    })
+                });
+                fetchScrapeHistory(); // Refresh history view
+            } catch (err) {
+                console.error("Failed to save history", err);
+            }
             
             currentFilteredData = [...resultsData];
             fetchOverviewStats();
