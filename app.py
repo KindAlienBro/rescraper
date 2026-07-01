@@ -103,8 +103,10 @@ def format_data_for_wide_export(results_data):
             group_key = f"BXX{match_bxx.group(1)}"
         elif match_old:
             group_key = match_old.group(1)
+        elif code and code[-1].isalpha():
+            group_key = code[:-1]
         else:
-            group_key = code[:-1] if len(code) > 0 else code
+            group_key = code
             
         if group_key not in elective_groups: elective_groups[group_key] = []
         elective_groups[group_key].append(code)
@@ -141,8 +143,11 @@ def format_data_for_wide_export(results_data):
         processed_records.append(record)
     return processed_records, display_headers
 
-def calculate_student_stats(student):
+def calculate_student_stats(student, credit_map=None):
     """Calculates SGPA, percentage, and pass/fail status for a single student dictionary."""
+    if credit_map is None:
+        credit_map = CREDIT_MAP # Use global if not provided
+
     total_credit_points, total_grade_credit_product = 0, 0
     num_subjects = len(student.get('subjects', []))
     max_possible_marks = num_subjects * 100
@@ -164,8 +169,17 @@ def calculate_student_stats(student):
         try: total_marks_obtained += int(subject.get('external_marks', '0'))
         except: pass
 
-        credits = CREDIT_MAP.get(subject.get('subject_code'))
-        if credits:
+        subj_code = subject.get('subject_code')
+        if not subj_code: continue
+        
+        # --- Smart Subject Auto-Discovery ---
+        if subj_code not in credit_map:
+            print(f"[SMART ADD] Auto-adding unknown subject '{subj_code}' to database.")
+            db.save_credit(subj_code, 0)
+            credit_map[subj_code] = 0 # Update memory map instantly
+
+        credits = credit_map.get(subj_code)
+        if credits is not None:
             grade_point = get_grade_point(subject.get('total'), res)
             total_credit_points += credits
             total_grade_credit_product += (grade_point * credits)
@@ -202,9 +216,12 @@ def scrape_chunk():
         return jsonify({'error': 'Missing usns or vtu_url'}), 400
         
     try:
+        # Load fresh credits for accurate SGPA
+        fresh_credits = db.get_all_credits()
+        
         results = fetch_vtu_results(usn_list, vtu_url, job_state=None)
         if results:
-            results = [calculate_student_stats(r) for r in results]
+            results = [calculate_student_stats(r, fresh_credits) for r in results]
             return jsonify({'success': True, 'scraped_count': len(results), 'results': results})
         else:
             return jsonify({'success': False, 'error': 'No results found or process failed.'}), 404
@@ -325,10 +342,11 @@ def get_class_students(class_id):
             rows = cursor.fetchall()
         conn.close()
         
+        fresh_credits = db.get_all_credits()
         students = []
         for row in rows:
             data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
-            data = calculate_student_stats(data)
+            data = calculate_student_stats(data, fresh_credits)
             students.append(data)
             
         return jsonify(students)
@@ -365,10 +383,11 @@ def get_student_history(usn):
             rows = cursor.fetchall()
         conn.close()
         
+        fresh_credits = db.get_all_credits()
         history = []
         for row in rows:
             data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
-            data = calculate_student_stats(data)
+            data = calculate_student_stats(data, fresh_credits)
             data['scraped_url'] = row['url']
             data['scraped_at'] = row['timestamp'].isoformat() if hasattr(row['timestamp'], 'isoformat') else str(row['timestamp'])
             history.append(data)
