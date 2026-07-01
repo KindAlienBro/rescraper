@@ -267,10 +267,8 @@ def clear_database():
         conn = get_db_connection()
         with conn.cursor() as cursor:
             cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
-            cursor.execute("TRUNCATE TABLE results;")
-            cursor.execute("TRUNCATE TABLE students;")
-            cursor.execute("TRUNCATE TABLE scrape_jobs;")
             cursor.execute("TRUNCATE TABLE results_cache_v2;")
+            cursor.execute("TRUNCATE TABLE scrape_history;")
             cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
         conn.commit()
         conn.close()
