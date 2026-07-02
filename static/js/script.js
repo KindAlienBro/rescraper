@@ -159,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsData = [];
             currentFilteredData = [];
             currentSkippedUsns = []; // Reset skipped tracker
+            let globalMissingSubjects = new Set();
             if (btnDownloadSkipped) btnDownloadSkipped.classList.add('hidden');
             loader.classList.remove('hidden');
             progContainer.classList.remove('hidden');
@@ -194,7 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: JSON.stringify({ usns: chunk, vtu_url: url })
                     });
 
-                    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                    if (!res.ok) {
+                        const errorData = await res.json().catch(() => null);
+                        if (errorData && errorData.error === 'MISSING_CREDITS') {
+                            throw new Error(`MISSING_CREDITS:${errorData.subject_code}`);
+                        }
+                        throw new Error(`HTTP Error ${res.status}`);
+                    }
 
                     const data = await res.json();
 
@@ -203,6 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (data.skipped && data.skipped.length > 0) {
                         currentSkippedUsns = currentSkippedUsns.concat(data.skipped);
+                    }
+                    if (data.missing_subjects && data.missing_subjects.length > 0) {
+                        data.missing_subjects.forEach(sub => globalMissingSubjects.add(sub));
                     }
 
                     completedUsns += chunk.length;
@@ -279,6 +289,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchScrapeHistory(); // Refresh history view
             } catch (err) {
                 console.error("Failed to save history", err);
+            }
+
+            // Handle Missing Subjects Prompt
+            if (globalMissingSubjects.size > 0) {
+                for (const subj of globalMissingSubjects) {
+                    const userCredits = prompt(`Scrape finished! But we found an unknown subject: ${subj}\\nPlease enter the credits for this subject to calculate SGPAs correctly:`);
+                    if (userCredits !== null && userCredits.trim() !== '' && !isNaN(userCredits)) {
+                        await fetch(API_URLS[0] + '/api/credits', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ subject_code: subj, credits: parseInt(userCredits) })
+                        }).catch(e => console.error("Error saving credits", e));
+                    }
+                }
+                
+                statusMsg.textContent = "Recalculating SGPAs...";
+                try {
+                    const recalcRes = await fetch(API_URLS[0] + '/api/recalculate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ students: resultsData })
+                    });
+                    if (recalcRes.ok) {
+                        const recalcData = await recalcRes.json();
+                        if (recalcData.success) {
+                            resultsData = recalcData.results;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to recalculate", e);
+                }
             }
 
             currentFilteredData = [...resultsData];

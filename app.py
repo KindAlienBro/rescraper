@@ -203,10 +203,13 @@ def calculate_student_stats(student, credit_map=None):
             except ValueError:
                 pass
 
-        # If still not found anywhere, auto-add it safely with 0 credits
+        # If still not found anywhere, ask the user
         if credits is None:
-            print(f"[SMART ADD] Auto-adding unknown subject '{subj_code}' to database with 0 credits.")
-            db.save_credit(subj_code, 0)
+            print(f"[MISSING CREDITS] Unknown subject '{subj_code}' encountered.")
+            if 'missing_subjects' not in student:
+                student['missing_subjects'] = []
+            if subj_code not in student['missing_subjects']:
+                student['missing_subjects'].append(subj_code)
             credits = 0
             
         # Temporarily cache this mapping so we don't repeat the regex
@@ -270,14 +273,18 @@ def scrape_chunk():
             
         results, skipped = fetch_vtu_results(usn_list, vtu_url, job_state=None)
         
+        missing_subjects = set()
         if results:
             results = [calculate_student_stats(r, fresh_credits) for r in results]
+            for r in results:
+                if 'missing_subjects' in r:
+                    missing_subjects.update(r['missing_subjects'])
             
         return jsonify({
             'success': True, 
-            'scraped_count': len(results) if results else 0, 
-            'results': results if results else [],
-            'skipped': skipped
+            'results': results, 
+            'skipped': skipped,
+            'missing_subjects': list(missing_subjects)
         })
     except Exception as e:
         print(f"[SCRAPE CHUNK ERROR] {e}")
@@ -650,6 +657,13 @@ def clear_database():
     if success:
         return jsonify({'success': True, 'message': msg}), 200
     return jsonify({'success': False, 'message': msg}), 500
+
+@app.route('/api/recalculate', methods=['POST'])
+def recalculate_batch():
+    students = request.json.get('students', [])
+    fresh_credits = db.get_all_credits()
+    updated_students = [calculate_student_stats(s, fresh_credits) for s in students]
+    return jsonify({'success': True, 'results': updated_students})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7860))
