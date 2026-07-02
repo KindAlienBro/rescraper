@@ -23,11 +23,80 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/auth.css">
 </head>
 
 <body>
 
-    <div class="dashboard-layout">
+    <!-- Auth Overlay -->
+    <div id="auth-overlay">
+        <div class="auth-bg-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+        </div>
+        
+        <div class="auth-container" id="auth-container">
+            <div class="auth-header">
+                <h1>Vorniity</h1>
+                <p>Welcome back, please sign in below.</p>
+            </div>
+            
+            <div class="auth-slider-container">
+                <div class="auth-slider-bg"></div>
+                <div class="auth-slider-btn active" id="btn-show-login">Login</div>
+                <div class="auth-slider-btn" id="btn-show-signup">Sign Up</div>
+            </div>
+            
+            <div class="auth-forms-wrapper">
+                <!-- Login Form -->
+                <form class="auth-form" id="login-form">
+                    <div class="auth-input-group">
+                        <label>Email</label>
+                        <input type="email" id="login-email" required placeholder="you@example.com">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Password</label>
+                        <input type="password" id="login-password" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="auth-submit-btn">Sign In <i class="ph ph-arrow-right"></i></button>
+                    <div class="auth-msg" id="login-msg"></div>
+                </form>
+                
+                <!-- Sign Up Form -->
+                <form class="auth-form" id="signup-form">
+                    <div class="auth-input-group">
+                        <label>Name</label>
+                        <input type="text" id="signup-name" required placeholder="John Doe">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>College</label>
+                        <input type="text" id="signup-college" required placeholder="VTU Affiliated College">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Email</label>
+                        <input type="email" id="signup-email" required placeholder="you@example.com">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Phone No.</label>
+                        <input type="tel" id="signup-phone" placeholder="Optional">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Password</label>
+                        <input type="password" id="signup-password" required placeholder="••••••••">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="signup-confirm" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="auth-submit-btn">Create Account <i class="ph ph-user-plus"></i></button>
+                    <div class="auth-msg" id="signup-msg"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="dashboard-layout hidden" id="main-dashboard">
 
         <!-- Mobile Sidebar Overlay -->
         <div id="sidebar-overlay" class="overlay hidden"></div>
@@ -374,7 +443,8 @@
 
             </div>
 
-            <script src="/static/js/script.js"></script>
+            <script src="/static/js/auth.js"></script>
+    <script src="/static/js/script.js"></script>
 </body>
 
 </html>

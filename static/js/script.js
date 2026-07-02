@@ -1,3 +1,9 @@
+const API_URLS = [
+    'https://vorniity-rescraper-api.onrender.com',
+    'https://kindalien-vorniity-rescraper-api.hf.space'
+];
+window.API_URLS = API_URLS;
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Navigation & Layout ---
@@ -111,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Distributed Scrape Orchestration Logic ---
-    const API_URLS = [
+    const API_URLS = window.API_URLS || [
         'https://vorniity-rescraper-api.onrender.com',
         'https://kindalien-vorniity-rescraper-api.hf.space'
     ];

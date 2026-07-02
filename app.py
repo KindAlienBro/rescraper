@@ -13,6 +13,7 @@ from scraper import fetch_vtu_results
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
+from werkzeug.security import check_password_hash
 import db
 
 import sys
@@ -664,6 +665,42 @@ def recalculate_batch():
     fresh_credits = db.get_all_credits()
     updated_students = [calculate_student_stats(s, fresh_credits) for s in students]
     return jsonify({'success': True, 'results': updated_students})
+
+@app.route('/api/auth/signup', methods=['POST'])
+def auth_signup():
+    data = request.json
+    name = data.get('name')
+    college = data.get('college')
+    email = data.get('email')
+    phone = data.get('phone')
+    password = data.get('password')
+    
+    if not all([name, college, email, password]):
+        return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+        
+    success, msg = db.create_user(name, college, email, phone, password)
+    if success:
+        return jsonify({'success': True, 'message': msg})
+    return jsonify({'success': False, 'message': msg}), 400
+
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    
+    user = db.get_user_by_email(email)
+    if user and check_password_hash(user['password_hash'], password):
+        # In a real app we'd return a JWT, but for simplicity we return success
+        return jsonify({
+            'success': True, 
+            'user': {
+                'id': user['id'],
+                'name': user['name'],
+                'email': user['email']
+            }
+        })
+    return jsonify({'success': False, 'message': 'Invalid email or password'}), 401
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7860))

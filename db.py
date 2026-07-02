@@ -3,6 +3,7 @@ import json
 import os
 import time
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv(override=True)
 
@@ -58,6 +59,17 @@ def init_db():
                     time_taken FLOAT,
                     status VARCHAR(50),
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    college VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    phone VARCHAR(50),
+                    password_hash VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
         conn.commit()
@@ -294,3 +306,34 @@ def clear_database():
     except Exception as e:
         print(f"[DB ERROR] Failed to clear database: {e}")
         return False, str(e)
+
+# --- Auth Logic ---
+def create_user(name, college, email, phone, password):
+    try:
+        conn = get_db_connection()
+        password_hash = generate_password_hash(password)
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO users (name, college, email, phone, password_hash) VALUES (%s, %s, %s, %s, %s)",
+                (name, college, email, phone, password_hash)
+            )
+        conn.commit()
+        conn.close()
+        return True, "User created successfully"
+    except pymysql.err.IntegrityError:
+        return False, "Email already exists"
+    except Exception as e:
+        print(f"[DB ERROR] Failed to create user: {e}")
+        return False, str(e)
+
+def get_user_by_email(email):
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+            user = cursor.fetchone()
+        conn.close()
+        return user
+    except Exception as e:
+        print(f"[DB ERROR] Failed to get user: {e}")
+        return None
