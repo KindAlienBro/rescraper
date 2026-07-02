@@ -226,16 +226,11 @@ def calculate_student_stats(student, credit_map=None):
         credit_map[subj_code] = credits
 
         if credits is not None:
-            gp_scraped = subject.get('grade_point')
-            if gp_scraped:
-                try:
-                    grade_point = float(gp_scraped)
-                    print(f"[DEBUG SGPA] {subj_code}: Scraped Grade Point = {grade_point}")
-                except ValueError:
-                    grade_point = get_grade_point(subject.get('total'), res)
-            else:
-                grade_point = get_grade_point(subject.get('total'), res)
-                
+            # Strictly use the formula to find Grade Points from Total Marks, ignoring any scraped GP
+            grade_point, letter_grade = get_grade_info(subject.get('total'), res)
+            
+            subject['calculated_grade_point'] = grade_point
+            subject['letter_grade'] = letter_grade
             print(f"[DEBUG SGPA] {subj_code}: Credits = {credits}, Grade Point = {grade_point}, Result = {res}, Total Marks = {subject.get('total')}")
 
             total_credit_points += credits
