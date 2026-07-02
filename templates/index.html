@@ -22,78 +22,128 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/auth.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=2">
+    <link rel="stylesheet" href="/static/css/auth.css?v=2">
 </head>
 
 <body>
 
     <!-- Auth Overlay -->
+    <!-- Auth Overlay -->
     <div id="auth-overlay">
-        <div class="auth-bg-shapes">
-            <div class="shape shape-1"></div>
-            <div class="shape shape-2"></div>
+        <!-- Ambient background effects -->
+        <div class="auth-bg-fx">
+            <div class="fx-blob fx-1"></div>
+            <div class="fx-blob fx-2"></div>
+            <div class="fx-blob fx-3"></div>
         </div>
         
-        <div class="auth-container" id="auth-container">
-            <div class="auth-header">
-                <h1>Vorniity</h1>
-                <p>Welcome back, please sign in below.</p>
+        <div class="auth-box">
+            <div class="auth-box-header">
+                <div class="auth-logo">
+                    <img src="/static/images/vorniity.png" alt="Vorniity Logo">
+                    <span>ReScraper</span>
+                </div>
+                <h2 id="auth-title">Welcome back</h2>
+                <p id="auth-subtitle">Enter your details to sign in to your account</p>
             </div>
             
-            <div class="auth-slider-container">
-                <div class="auth-slider-bg"></div>
-                <div class="auth-slider-btn active" id="btn-show-login">Login</div>
-                <div class="auth-slider-btn" id="btn-show-signup">Sign Up</div>
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login">Log In</button>
+                <button class="auth-tab" id="tab-signup">Sign Up</button>
             </div>
             
-            <div class="auth-forms-wrapper">
+            <div class="auth-form-area">
                 <!-- Login Form -->
-                <form class="auth-form" id="login-form">
+                <form id="login-form" class="auth-form active">
                     <div class="auth-input-group">
                         <label>Email</label>
-                        <input type="email" id="login-email" required placeholder="you@example.com">
+                        <input type="email" id="login-email" placeholder="name@example.com" required>
                     </div>
                     <div class="auth-input-group">
-                        <label>Password</label>
-                        <input type="password" id="login-password" required placeholder="••••••••">
+                        <div class="label-row">
+                            <label>Password</label>
+                            <a href="#" class="forgot-link">Forgot password?</a>
+                        </div>
+                        <div class="input-wrap">
+                            <input type="password" id="login-password" placeholder="••••••••" required>
+                            <button type="button" class="eye-btn" tabindex="-1"><i class="ph ph-eye"></i></button>
+                        </div>
                     </div>
-                    <button type="submit" class="auth-submit-btn">Sign In <i class="ph ph-arrow-right"></i></button>
-                    <div class="auth-msg" id="login-msg"></div>
+                    <button type="submit" class="auth-btn-primary">
+                        <span>Sign In</span>
+                        <div class="spinner"></div>
+                    </button>
+                    <div class="auth-msg" id="login-message"></div>
                 </form>
-                
-                <!-- Sign Up Form -->
-                <form class="auth-form" id="signup-form">
+
+                <!-- Signup Form -->
+                <form id="signup-form" class="auth-form">
                     <div class="auth-input-group">
-                        <label>Name</label>
-                        <input type="text" id="signup-name" required placeholder="John Doe">
+                        <label>Full Name</label>
+                        <input type="text" id="signup-name" placeholder="John Doe" required>
                     </div>
                     <div class="auth-input-group">
-                        <label>College</label>
-                        <input type="text" id="signup-college" required placeholder="VTU Affiliated College">
+                        <label>Email Address</label>
+                        <input type="email" id="signup-email" placeholder="name@example.com" required>
                     </div>
-                    <div class="auth-input-group">
-                        <label>Email</label>
-                        <input type="email" id="signup-email" required placeholder="you@example.com">
+                    <div class="auth-input-row">
+                        <div class="auth-input-group">
+                            <label>College</label>
+                            <input type="text" id="signup-college" placeholder="e.g. BMSCE" required>
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Phone</label>
+                            <input type="tel" id="signup-phone" placeholder="+91 9876543210" required>
+                        </div>
                     </div>
-                    <div class="auth-input-group">
-                        <label>Phone No.</label>
-                        <input type="tel" id="signup-phone" placeholder="Optional">
+                    <div class="auth-input-row">
+                        <div class="auth-input-group">
+                            <label>Password</label>
+                            <div class="input-wrap">
+                                <input type="password" id="signup-password" placeholder="Create password" required>
+                                <button type="button" class="eye-btn" tabindex="-1"><i class="ph ph-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Confirm Password</label>
+                            <div class="input-wrap">
+                                <input type="password" id="signup-confirm" placeholder="Confirm password" required>
+                                <button type="button" class="eye-btn" tabindex="-1"><i class="ph ph-eye"></i></button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="auth-input-group">
-                        <label>Password</label>
-                        <input type="password" id="signup-password" required placeholder="••••••••">
+                    
+                    <div class="pwd-strength">
+                        <div class="pwd-bars">
+                            <div class="p-bar"></div>
+                            <div class="p-bar"></div>
+                            <div class="p-bar"></div>
+                            <div class="p-bar"></div>
+                        </div>
+                        <span class="pwd-text"></span>
                     </div>
-                    <div class="auth-input-group">
-                        <label>Confirm Password</label>
-                        <input type="password" id="signup-confirm" required placeholder="••••••••">
-                    </div>
-                    <button type="submit" class="auth-submit-btn">Create Account <i class="ph ph-user-plus"></i></button>
-                    <div class="auth-msg" id="signup-msg"></div>
+
+                    <button type="submit" class="auth-btn-primary">
+                        <span>Create Account</span>
+                        <div class="spinner"></div>
+                    </button>
+                    <div class="auth-msg" id="signup-message"></div>
                 </form>
+            </div>
+            
+            <div class="auth-box-footer">
+                By continuing, you agree to Vorniity's <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
             </div>
         </div>
+        
+        <a href="https://www.vorniity.com" target="_blank" class="powered-by-vorniity">
+            Powered by 
+            <img src="/static/images/vorniity.png" alt="Vorniity" class="powered-by-logo">
+            <span>Vorniity</span>
+        </a>
     </div>
+
 
     <!-- Main App -->
     <div class="dashboard-layout hidden" id="main-dashboard">
@@ -140,6 +190,10 @@
                     <i class="ph ph-gear"></i>
                     <span>Settings</span>
                 </button>
+                <button id="nav-logout" class="nav-item" style="color: #ef4444;">
+                    <i class="ph ph-sign-out"></i>
+                    <span>Logout</span>
+                </button>
             </div>
         </aside>
 
@@ -156,7 +210,7 @@
                 <div class="topbar-right">
                     <div class="user-profile">
                         <div class="avatar"><i class="ph ph-user"></i></div>
-                        <span>Admin</span>
+                        <span id="topbar-username">Admin</span>
                     </div>
                 </div>
             </header>
@@ -443,8 +497,8 @@
 
             </div>
 
-            <script src="/static/js/auth.js"></script>
-    <script src="/static/js/script.js"></script>
+            <script src="/static/js/auth.js?v=3"></script>
+    <script src="/static/js/script.js?v=3"></script>
 </body>
 
 </html>
