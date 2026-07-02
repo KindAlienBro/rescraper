@@ -66,22 +66,20 @@ def init_db():
         print(f"[DB ERROR] Failed to initialize DB: {e}")
 
 def seed_credits_if_empty(hardcoded_map):
-    """Seed the database with the hardcoded credit map if the table is empty."""
+    """Ensure hardcoded subject credits exist in the DB without overwriting user changes."""
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            cursor.execute("SELECT COUNT(*) as count FROM subject_credits")
-            count = cursor.fetchone()['count']
-            
-            if count == 0:
-                print("[DB] Seeding subject_credits from hardcoded map...")
-                for code, credit in hardcoded_map.items():
-                    cursor.execute(
-                        "INSERT INTO subject_credits (subject_code, credits) VALUES (%s, %s)",
-                        (code, credit)
-                    )
-                conn.commit()
-                print(f"[DB] Seeded {len(hardcoded_map)} subjects.")
+            for code, credit in hardcoded_map.items():
+                cursor.execute(
+                    """
+                    INSERT INTO subject_credits (subject_code, credits) 
+                    VALUES (%s, %s)
+                    ON DUPLICATE KEY UPDATE credits = IF(credits = 0, VALUES(credits), credits)
+                    """,
+                    (code, credit)
+                )
+            conn.commit()
         conn.close()
     except Exception as e:
         print(f"[DB ERROR] Failed to seed credits: {e}")
