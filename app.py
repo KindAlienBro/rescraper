@@ -77,19 +77,20 @@ CREDIT_MAP = {
 db.seed_credits_if_empty(CREDIT_MAP)
 CREDIT_MAP = db.get_all_credits()
 
-def get_grade_point(marks_str, result_str):
-    if result_str in ['F', 'A', 'NE']: return 0
+def get_grade_info(marks_str, result_str):
+    if result_str in ['F', 'NE']: return (0, 'F')
+    if result_str == 'A': return (0, 'Ab')
     try:
         marks = int(marks_str)
-        if 90 <= marks <= 100: return 10
-        elif 80 <= marks <= 89: return 9
-        elif 70 <= marks <= 79: return 8
-        elif 60 <= marks <= 69: return 7
-        elif 55 <= marks <= 59: return 6
-        elif 50 <= marks <= 54: return 5
-        elif 40 <= marks <= 49: return 4
-        else: return 0
-    except (ValueError, TypeError): return 0
+        if 90 <= marks <= 100: return (10, 'O')
+        elif 80 <= marks <= 89: return (9, 'A+')
+        elif 70 <= marks <= 79: return (8, 'A')
+        elif 60 <= marks <= 69: return (7, 'B+')
+        elif 55 <= marks <= 59: return (6, 'B')
+        elif 50 <= marks <= 54: return (5, 'C')
+        elif 40 <= marks <= 49: return (4, 'P')
+        else: return (0, 'F')
+    except (ValueError, TypeError): return (0, 'F')
 def generate_usn_range(start_usn, end_usn):
     try:
         start_prefix, end_prefix = start_usn[:-3], end_usn[:-3]
