@@ -156,6 +156,9 @@ def calculate_student_stats(student, credit_map=None):
     subjects_failed = 0
     subjects_absent = 0
 
+    print(f"\n[DEBUG SGPA] === Calculating stats for {student.get('usn', 'Unknown')} ===")
+    print(f"[DEBUG SGPA] Subjects list length: {num_subjects}")
+
     for subject in student.get('subjects', []):
         res = subject.get('result', '')
         if res == 'F': 
@@ -196,12 +199,13 @@ def calculate_student_stats(student, credit_map=None):
         if scraped_credits:
             try:
                 credits = int(scraped_credits)
+                print(f"[DEBUG SGPA] {subj_code}: Scraped credits found = {credits}")
             except ValueError:
                 pass
 
         # If still not found anywhere, auto-add it safely with 0 credits
         if credits is None:
-            print(f"[SMART ADD] Auto-adding unknown subject '{subj_code}' to database.")
+            print(f"[SMART ADD] Auto-adding unknown subject '{subj_code}' to database with 0 credits.")
             db.save_credit(subj_code, 0)
             credits = 0
             
@@ -213,15 +217,21 @@ def calculate_student_stats(student, credit_map=None):
             if gp_scraped:
                 try:
                     grade_point = float(gp_scraped)
+                    print(f"[DEBUG SGPA] {subj_code}: Scraped Grade Point = {grade_point}")
                 except ValueError:
                     grade_point = get_grade_point(subject.get('total'), res)
             else:
                 grade_point = get_grade_point(subject.get('total'), res)
                 
+            print(f"[DEBUG SGPA] {subj_code}: Credits = {credits}, Grade Point = {grade_point}, Result = {res}, Total Marks = {subject.get('total')}")
+
             total_credit_points += credits
             total_grade_credit_product += (grade_point * credits)
 
-    student['sgpa'] = f"{(total_grade_credit_product / total_credit_points):.2f}" if total_credit_points > 0 else "N/A"
+    sgpa_str = f"{(total_grade_credit_product / total_credit_points):.2f}" if total_credit_points > 0 else "N/A"
+    print(f"[DEBUG SGPA] === FINAL SGPA: {sgpa_str} (Total Credit Points: {total_credit_points}, Grade*Credit: {total_grade_credit_product}) ===\n")
+    
+    student['sgpa'] = sgpa_str
     percentage = (total_marks_obtained / max_possible_marks) * 100 if max_possible_marks > 0 else 0
     student['percentage'] = f"{percentage:.2f}%" if max_possible_marks > 0 else "N/A"
     
