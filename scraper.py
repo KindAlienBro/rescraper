@@ -194,6 +194,35 @@ def parse_result_html(html_content, usn):
             print(f"[{usn}] Result table or header row not found. Saved HTML to failed_subjects_{usn}.html")
             return None, "Result table or header row not found"
 
+        # Find column indices
+        col_indices = {
+            'subject_code': 0,
+            'internal_marks': 2,
+            'external_marks': 3,
+            'total': 4,
+            'result': 5,
+            'grade_point': -1,
+            'credits': -1
+        }
+        
+        if header_row.name == 'tr':
+            headers = header_row.find_all(['th', 'td'])
+        else:
+            headers = header_row.find_all('div', recursive=False)
+            if not headers:
+                headers = header_row.find_all('div', class_='divTableCell')
+                
+        header_texts = [h.get_text(strip=True).lower() for h in headers]
+        
+        for idx, text in enumerate(header_texts):
+            if 'subject code' in text: col_indices['subject_code'] = idx
+            elif 'internal' in text or 'ia' in text or 'ind' in text: col_indices['internal_marks'] = idx
+            elif 'external' in text or 'ea' in text or 'uni' in text: col_indices['external_marks'] = idx
+            elif 'total' in text: col_indices['total'] = idx
+            elif 'result' in text: col_indices['result'] = idx
+            elif 'grade point' in text or 'gp' in text.split(): col_indices['grade_point'] = idx
+            elif 'credit' in text: col_indices['credits'] = idx
+
         # 2. Extract Data Rows by looking at siblings of the header row
         current_row = header_row.find_next_sibling()
         
@@ -206,14 +235,20 @@ def parse_result_html(html_content, usn):
                 if not cells:
                     cells = current_row.find_all('div', class_='divTableCell')
 
-            if len(cells) >= 6:
-                subjects.append({
-                    'subject_code': cells[0].get_text(strip=True),
-                    'internal_marks': cells[2].get_text(strip=True),
-                    'external_marks': cells[3].get_text(strip=True),
-                    'total': cells[4].get_text(strip=True),
-                    'result': cells[5].get_text(strip=True)
-                })
+            if len(cells) > max(col_indices['subject_code'], col_indices['result']):
+                subject_data = {
+                    'subject_code': cells[col_indices['subject_code']].get_text(strip=True),
+                    'internal_marks': cells[col_indices['internal_marks']].get_text(strip=True) if col_indices['internal_marks'] >= 0 else '0',
+                    'external_marks': cells[col_indices['external_marks']].get_text(strip=True) if col_indices['external_marks'] >= 0 else '0',
+                    'total': cells[col_indices['total']].get_text(strip=True) if col_indices['total'] >= 0 else '0',
+                    'result': cells[col_indices['result']].get_text(strip=True) if col_indices['result'] >= 0 else ''
+                }
+                if col_indices['grade_point'] >= 0 and len(cells) > col_indices['grade_point']:
+                    subject_data['grade_point'] = cells[col_indices['grade_point']].get_text(strip=True)
+                if col_indices['credits'] >= 0 and len(cells) > col_indices['credits']:
+                    subject_data['credits'] = cells[col_indices['credits']].get_text(strip=True)
+                
+                subjects.append(subject_data)
             
             current_row = current_row.find_next_sibling()
 

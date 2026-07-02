@@ -159,8 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsData = [];
             currentFilteredData = [];
             currentSkippedUsns = []; // Reset skipped tracker
-            const skippedContainer = document.getElementById('skipped-report-container');
-            if (skippedContainer) skippedContainer.classList.add('hidden');
+            if (btnDownloadSkipped) btnDownloadSkipped.classList.add('hidden');
             loader.classList.remove('hidden');
             progContainer.classList.remove('hidden');
             fetchBtn.disabled = true;
@@ -292,8 +291,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('results-title').textContent = 'Live Scrape Results';
 
                 // Show PDF Download button if there are skipped USNs
-                if (currentSkippedUsns.length > 0 && document.getElementById('skipped-report-container')) {
-                    document.getElementById('skipped-report-container').classList.remove('hidden');
+                if (currentSkippedUsns.length > 0 && btnDownloadSkipped) {
+                    btnDownloadSkipped.classList.remove('hidden');
                 }
 
                 navItems['SCRAPE'].section.classList.add('hidden');

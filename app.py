@@ -146,7 +146,7 @@ def format_data_for_wide_export(results_data):
 def calculate_student_stats(student, credit_map=None):
     """Calculates SGPA, percentage, and pass/fail status for a single student dictionary."""
     if credit_map is None:
-        credit_map = CREDIT_MAP # Use global if not provided
+        credit_map = db.get_all_credits() # Fetch from DB directly if not provided
 
     total_credit_points, total_grade_credit_product = 0, 0
     num_subjects = len(student.get('subjects', []))
@@ -188,6 +188,17 @@ def calculate_student_stats(student, credit_map=None):
                 elif group_key_2x in credit_map:
                     credits = credit_map[group_key_2x]
         
+        # Temporarily cache this mapping so we don't repeat the regex
+        credit_map[subj_code] = credits
+        
+        # Override with scraped credits if they were found in the HTML table
+        scraped_credits = subject.get('credits')
+        if scraped_credits:
+            try:
+                credits = int(scraped_credits)
+            except ValueError:
+                pass
+
         # If still not found anywhere, auto-add it safely with 0 credits
         if credits is None:
             print(f"[SMART ADD] Auto-adding unknown subject '{subj_code}' to database.")
@@ -198,7 +209,15 @@ def calculate_student_stats(student, credit_map=None):
         credit_map[subj_code] = credits
 
         if credits is not None:
-            grade_point = get_grade_point(subject.get('total'), res)
+            gp_scraped = subject.get('grade_point')
+            if gp_scraped:
+                try:
+                    grade_point = float(gp_scraped)
+                except ValueError:
+                    grade_point = get_grade_point(subject.get('total'), res)
+            else:
+                grade_point = get_grade_point(subject.get('total'), res)
+                
             total_credit_points += credits
             total_grade_credit_product += (grade_point * credits)
 
@@ -264,10 +283,11 @@ def get_all_students_from_db():
             rows = cursor.fetchall()
         conn.close()
         
+        fresh_credits = db.get_all_credits()
         students = []
         for row in rows:
             data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
-            data = calculate_student_stats(data)
+            data = calculate_student_stats(data, fresh_credits)
             students.append(data)
             
         return jsonify(students)

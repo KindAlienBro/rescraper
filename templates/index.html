@@ -184,13 +184,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Skipped Report Button -->
-                            <div id="skipped-report-container" class="hidden" style="margin-top: 15px;">
-                                <button id="btn-download-skipped" class="btn btn-secondary w-full" style="border: 1px solid var(--danger); color: var(--danger);">
-                                    <i class="ph ph-file-pdf"></i> Download Skipped USNs Report
-                                </button>
-                            </div>
-                            
                         </div>
                     </div>
                 </section>
@@ -215,6 +208,9 @@
                                     <option value="SC">Second Class</option>
                                     <option value="FAIL">Fail</option>
                                 </select>
+                                <button id="btn-download-skipped" class="btn btn-outline hidden" style="border-color: var(--error); color: var(--error);">
+                                    <i class="ph ph-file-pdf"></i> Skipped USNs
+                                </button>
                                 <button id="download-excel" class="btn btn-outline">
                                     <i class="ph ph-file-xls"></i> Export .xlsx
                                 </button>
